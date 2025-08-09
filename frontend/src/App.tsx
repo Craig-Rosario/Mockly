@@ -1,10 +1,12 @@
-import { Button } from './components/ui/button'
+import { BrowserRouter } from 'react-router-dom'
+import AppRoutes from './router/AppRoutes'
 
 function App() {
 
   return (
-
-    <Button variant="destructive">test</Button>
+    <BrowserRouter>
+      <AppRoutes/>
+    </BrowserRouter>
   )
 }
 
