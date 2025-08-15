@@ -1,10 +1,5 @@
+import { DashboardLayout } from "./DashboardLayout"
 
-const Dashboard = () => {
-  return (
-    <div>
-      
-    </div>
-  )
+export function Dashboard() {
+  return <DashboardLayout />
 }
-
-export default Dashboard
