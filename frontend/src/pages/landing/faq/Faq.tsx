@@ -39,7 +39,7 @@ const Faq = () => {
                             <AccordionContent className="px-5 pb-5 pt-1 text-zinc-300 leading-relaxed">
                                 <div className="flex flex-col gap-4 text-balance">
                                     <p>
-                                        It's AI
+                                        Mockly is a complete online interview preparation platform. It helps you get hired by optimizing your resume with an ATS checker, sharpening your skills with realistic AI interviews and feedback, and preparing you for tests with online assessments.
                                     </p>
                                 </div>
                             </AccordionContent>
@@ -50,12 +50,12 @@ const Faq = () => {
                             className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm"
                         >
                             <AccordionTrigger className="px-5 py-4 text-left text-zinc-100 hover:no-underline data-[state=open]:bg-zinc-900/60">
-                                <span className="text-base md:text-lg font-medium">Shipping Details</span>
+                                <span className="text-base md:text-lg font-medium">Pricing</span>
                             </AccordionTrigger>
                             <AccordionContent className="px-5 pb-5 pt-1 text-zinc-300 leading-relaxed">
                                 <div className="flex flex-col gap-4 text-balance">
                                     <p>
-                                        Written up bro
+                                        Mockly offers several subscription tiers to fit your needs, from a basic plan with limited access to a premium plan that includes unlimited AI interviews and comprehensive feedback. You can view all our available plans and their features on our dedicated pricing page.
                                     </p>
                                     
                                 </div>
@@ -72,7 +72,7 @@ const Faq = () => {
                             <AccordionContent className="px-5 pb-5 pt-1 text-zinc-300 leading-relaxed">
                                 <div className="flex flex-col gap-4 text-balance">
                                     <p>
-                                        LMAO
+                                        As a digital service, Mockly doesn't have a traditional return policy like a physical good. Instead, it would have a refund policy.
                                     </p>
                                 </div>
                             </AccordionContent>
@@ -88,7 +88,7 @@ const Faq = () => {
                             <AccordionContent className="px-5 pb-5 pt-1 text-zinc-300 leading-relaxed">
                                 <div className="flex flex-col gap-4 text-balance">
                                     <p>
-                                        Chal be
+                                        As a digital service, Mockly does not have a traditional product warranty. Instead, we are committed to your satisfaction. We offer a money-back guarantee if you are not satisfied with our service within a specified period of your first purchase. For details on our refund policy, please refer to our full Terms of Service.
                                     </p>
                                 </div>
                             </AccordionContent>
@@ -99,12 +99,12 @@ const Faq = () => {
                             className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm"
                         >
                             <AccordionTrigger className="px-5 py-4 text-left text-zinc-100 hover:no-underline data-[state=open]:bg-zinc-900/60">
-                                <span className="text-base md:text-lg font-medium">idk</span>
+                                <span className="text-base md:text-lg font-medium"> Technical Requirements</span>
                             </AccordionTrigger>
                             <AccordionContent className="px-5 pb-5 pt-1 text-zinc-300 leading-relaxed">
                                 <div className="flex flex-col gap-4 text-balance">
                                     <p>
-                                        kdi
+                                        To use Mockly, you need a stable internet connection, a modern web browser and a microphone. These are required for the AI interview feature and other tools, which are accessible on most laptops and desktop computers.
                                     </p>
                                 </div>
                             </AccordionContent>

@@ -7,9 +7,9 @@ const reviews = [
     { name: "Craig", username: "@craig", body: "Mockly transformed my entire job search process.", img: "https://avatar.vercel.sh/jack" },
     { name: "Dhanush", username: "@dhanush", body: "The AI interview practice felt incredibly real", img: "https://avatar.vercel.sh/jill" },
     { name: "Cheryl", username: "@cheryl", body: "The resume feedback helped me land more interviews faster than ever.", img: "https://avatar.vercel.sh/john" },
-    { name: "Craig Variant", username: "@craigvar", body: "Give me moneh pls", img: "https://avatar.vercel.sh/jane" },
-    { name: "Dhanush Variant", username: "@dhanushvar", body: "Mandatory Pechkas reference", img: "https://avatar.vercel.sh/jenny" },
-    { name: "Cheryl Variant", username: "@cherylvar", body: "Crazy tha re", img: "https://avatar.vercel.sh/james" },
+    { name: "Ned", username: "@ned", body: "The online assessments helped me identify and fix my weak spots before the real interview.", img: "https://avatar.vercel.sh/jane" },
+    { name: "Peter", username: "@Peter", body: "Mockly's ATS checker was the reason my resume finally got noticed.", img: "https://avatar.vercel.sh/jenny" },
+    { name: "Marry Jane", username: "@Marry", body: "The real-time feedback from the AI interviewer was a total gamechanger for my communication skills.", img: "https://avatar.vercel.sh/james" },
 ];
 
 const firstRow = reviews.slice(0, reviews.length / 2);
