@@ -6,12 +6,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 type LoginFormProps = React.ComponentProps<"form"> & {
-  onSwitch?: () => void; // NEW
+  onSwitch?: () => void; 
 };
 
 export function LoginForm({
   className,
-  onSwitch,               // NEW
+  onSwitch,               
   ...props
 }: LoginFormProps) {
   return (
