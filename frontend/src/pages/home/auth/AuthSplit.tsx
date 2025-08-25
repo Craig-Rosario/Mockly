@@ -10,14 +10,14 @@ export default function AuthSplit({ initial = "login" }: AuthSplitProps) {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 bg-black">
-      {/* Mockly Logo at top-left (smaller & closer to edge) */}
+      
       <div className="absolute top-4 left-4 z-50 text-white font-bold text-lg">
         Mockly
       </div>
 
-      {/* Auth container */}
+      
       <div className="relative w-full max-w-6xl min-h-[600px] bg-card rounded-2xl shadow-xl overflow-hidden flex">
-        {/* Accent / glass panel */}
+        
         <div
           className={[
             "absolute top-0 h-full w-1/2 rounded-3xl bg-background/60 backdrop-blur shadow-lg transition-transform duration-500 ease-in-out pointer-events-none z-20",
@@ -26,7 +26,7 @@ export default function AuthSplit({ initial = "login" }: AuthSplitProps) {
           aria-hidden
         />
 
-        {/* LEFT — Login */}
+        
         <div className="absolute inset-y-0 left-0 w-full lg:w-1/2 grid place-items-center p-6 z-40">
           <div
             className={[
@@ -40,7 +40,7 @@ export default function AuthSplit({ initial = "login" }: AuthSplitProps) {
           </div>
         </div>
 
-        {/* RIGHT — Register */}
+        
         <div className="absolute inset-y-0 right-0 w-full lg:w-1/2 grid place-items-center p-6 z-40">
           <div
             className={[
@@ -54,7 +54,7 @@ export default function AuthSplit({ initial = "login" }: AuthSplitProps) {
           </div>
         </div>
 
-        {/* Side image */}
+        
         <div className="absolute inset-y-0 right-0 hidden lg:block w-1/2 z-30">
           <img
             src="/placeholder.svg"
