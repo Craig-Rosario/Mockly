@@ -21,7 +21,13 @@ import {
     BarChart3,
     Plus,
 } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 const DashboardContent: React.FC = () => {
+    const navigate=useNavigate();
+    const handleClick=()=>{
+        navigate('/add-jobs/personal-details')
+    }
+
     interface JobAnalysisData {
         name: string
         value: number
@@ -72,7 +78,9 @@ const DashboardContent: React.FC = () => {
                         </div>
 
 
-                        <Button className="mt-5 text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-700 font-medium px-4 py-2 rounded-lg shadow-md  flex items-center">
+                        <Button className="mt-5 text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-700 font-medium px-4 py-2 rounded-lg shadow-md  flex items-center"
+                            onClick={handleClick}
+                        >
                             <Plus className="w-4 h-4 mr-2 white" />
                             Add Job Application
                         </Button>
