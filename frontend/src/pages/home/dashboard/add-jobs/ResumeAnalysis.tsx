@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import AppStepper from "@/components/custom/AppStepper"
+import { useNavigate } from "react-router-dom"
+import { useState } from "react"
 import {
   User,
   FileText,
@@ -17,8 +19,20 @@ import {
   GraduationCap,
   AlertTriangle,
 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const ResumeAnalysis = () => {
+  const [openDialog, setOpenDialog] = useState(false)
+  const navigate = useNavigate()
   return (
     <div className="min-h-screen w-full bg-zinc-950 text-white p-8">
       <h1 className="text-3xl font-bold mb-6">Resume Analysis</h1>
@@ -288,9 +302,30 @@ const ResumeAnalysis = () => {
             <Button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90">
               Mock Interview
             </Button>
-            <Button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90">
+            <Button
+              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
+              onClick={() => setOpenDialog(true)}
+            >
               Mock MCQ
             </Button>
+            <AlertDialog open={openDialog} onOpenChange={setOpenDialog}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Start Mock MCQ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Once started, the timer will begin for each question. Are you ready?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setOpenDialog(false)}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction onClick={() => navigate("/add-jobs/mcq")}>
+                    Start
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </section>
       </div>
