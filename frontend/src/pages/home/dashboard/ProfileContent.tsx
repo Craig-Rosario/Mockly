@@ -20,8 +20,8 @@ const ProfileContent = () => (
     <div className="flex-1 p-6 bg-black text-white overflow-auto">
         <div className="flex items-center justify-between mb-8">
             <div>
-                <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                    Hi Cheryl !
+                <h2 className="text-3xl font-bold bg-clip-text text-white">
+                    Hi User
                 </h2>
             </div>
             <Button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90 px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-md">
