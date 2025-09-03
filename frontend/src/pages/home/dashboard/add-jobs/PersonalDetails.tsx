@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { User, FileText, ListChecks, Mic } from "lucide-react"
+import { User, FileText, ListChecks, Mic,Award } from "lucide-react"
 import AppStepper from "@/components/custom/AppStepper"
 
 import { Textarea } from "@/components/ui/textarea"
@@ -46,6 +46,7 @@ const PersonalDetails = () => {
             { icon: <FileText className="h-5 w-5" />, label: "Job Details" },
             { icon: <ListChecks className="h-5 w-5" />, label: "MCQ" },
             { icon: <Mic className="h-5 w-5" />, label: "Interview" },
+            { icon: <Award className="h-5 w-5" />, label: "Final" },
           ]}
         />
 

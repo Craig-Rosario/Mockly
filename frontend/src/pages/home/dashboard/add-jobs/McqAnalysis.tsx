@@ -12,6 +12,7 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
+  Award
 } from "lucide-react"
 import { PieChart, Pie, Cell } from "recharts"
 import { motion, useMotionValue, useTransform, animate } from "framer-motion"
@@ -116,12 +117,13 @@ const McqAnalysis = () => {
 
       <div className="flex-1 flex flex-col gap-6">
         <AppStepper
-          currentStep={2.8}
-          steps={[
+          currentStep={2.45}
+         steps={[
             { icon: <User className="h-5 w-5" />, label: "Personal Details" },
             { icon: <FileText className="h-5 w-5" />, label: "Job Details" },
             { icon: <ListChecks className="h-5 w-5" />, label: "MCQ" },
             { icon: <Mic className="h-5 w-5" />, label: "Interview" },
+            { icon: <Award className="h-5 w-5" />, label: "Final" },
           ]}
         />
 
