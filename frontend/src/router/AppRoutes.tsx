@@ -4,9 +4,6 @@ import Dashboard from "@/pages/home/dashboard/Dashboard"
 import Features from "@/pages/landing/features/Features"
 import Pricing from "@/pages/landing/pricing/Pricing"
 import Faq from "@/pages/landing/faq/Faq"
-import Login from "@/pages/home/login/Login"
-import Register from "@/pages/home/registration/Registration"
-import Auth from "@/pages/home/auth/AuthSplit"
 import PersonalDetails from "@/pages/home/dashboard/add-jobs/PersonalDetails"
 import JobDetails from "@/pages/home/dashboard/add-jobs/JobDetails"
 import ResumeAnalysis from "@/pages/home/dashboard/add-jobs/ResumeAnalysis"
@@ -15,6 +12,8 @@ import McqAnalysis from "@/pages/home/dashboard/add-jobs/McqAnalysis"
 import FinalReport from "@/pages/home/dashboard/add-jobs/FinalReport"
 import MockInterviewAnalysis from "@/pages/home/dashboard/add-jobs/MockInterviewAnalysis"
 import MockInterview from "@/pages/home/dashboard/add-jobs/MockInterview"
+import LoginPage from "@/pages/home/login/LoginPage"
+import RegistrationPage from "@/pages/home/registration/RegistrationPage"
 
 const AppRoutes = () => {
   return (
@@ -28,9 +27,9 @@ const AppRoutes = () => {
       <Route path="/dashboard" element={<Dashboard />} />
 
       {/* Login Pages */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/registration" element={<Register />} />
-      <Route path="/auth" element={<Auth />} />
+      {/* <Route path="/login" element={<Login />} /> */}
+      <Route path="/registration" element={<RegistrationPage />} />
+      <Route path="/login" element={<LoginPage />} />
 
       {/* Add Jobs Page */}
       <Route path="/add-jobs/personal-details" element={<PersonalDetails/>}/>
