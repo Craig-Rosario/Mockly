@@ -30,7 +30,7 @@ export const Dashboard: React.FC = () => {
         <SidebarProvider>
             <Sidebar collapsible="icon" className="bg-gray-900 text-gray-200 border-r border-gray-700">
                 <SidebarHeader className="p-6 flex flex-col items-center space-y-4">
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                    <h1 className="text-2xl font-bold text-white bg-clip-text">
                         <span className="hidden group-data-[state=expanded]:block">MOCKLY</span>
                         <span className="block group-data-[state=collapsed]:block group-data-[state=expanded]:hidden">M</span>
                     </h1>
@@ -56,7 +56,7 @@ export const Dashboard: React.FC = () => {
                                 onClick={() => setActiveTab("dashboard")}
                                 isActive={activeTab === "dashboard"}
                                 className={`px-5 py-3 text-base rounded-none transition-colors ${activeTab === "dashboard"
-                                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md"
+                                    ? "bg-gradient-to-br from-[#0b4173] to-[#92caff] text-white shadow-md"
                                     : "hover:bg-gray-800 hover:text-white"
                                     }`}
                             >
@@ -70,7 +70,7 @@ export const Dashboard: React.FC = () => {
                                 onClick={() => setActiveTab("profile")}
                                 isActive={activeTab === "profile"}
                                 className={`px-5 py-3 text-base rounded-none transition-colors ${activeTab === "profile"
-                                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md"
+                                    ? "bg-gradient-to-br from-[#0b4173] to-[#92caff] text-white shadow-md"
                                     : "hover:bg-gray-800 hover:text-white"
                                     }`}
                             >
@@ -84,7 +84,7 @@ export const Dashboard: React.FC = () => {
                                 onClick={() => setActiveTab("previous-jobs")}
                                 isActive={activeTab === "previous-jobs"}
                                 className={`px-5 py-3 text-base rounded-none transition-colors ${activeTab === "previous-jobs"
-                                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md"
+                                    ? "bg-gradient-to-br from-[#0b4173] to-[#92caff] text-white shadow-md"
                                     : "hover:bg-gray-800 hover:text-white"
                                     }`}
                             >

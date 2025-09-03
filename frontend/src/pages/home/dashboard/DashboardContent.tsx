@@ -57,7 +57,7 @@ const DashboardContent: React.FC = () => {
 
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                    <h2 className="text-3xl font-bold bg-clip-text text-white">
                         Hi User
                     </h2>
                 </div>
