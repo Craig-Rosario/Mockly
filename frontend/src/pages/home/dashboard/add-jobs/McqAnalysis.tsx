@@ -1,8 +1,8 @@
-import { useLocation, useNavigate } from "react-router-dom"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
-import AppStepper from "@/components/custom/AppStepper"
+import { useLocation, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import AppStepper from "@/components/custom/AppStepper";
 import {
   User,
   FileText,
@@ -12,46 +12,60 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  Award
-} from "lucide-react"
-import { PieChart, Pie, Cell } from "recharts"
-import { motion, useMotionValue, useTransform, animate } from "framer-motion"
-import { useEffect } from "react"
-
+} from "lucide-react";
+import { PieChart, Pie, Cell } from "recharts";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
+import { useEffect, useState } from "react";
+// Import AlertDialog components
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type ResultItem = {
-  id: number
-  topic: string
-  question: string
-  options: string[]
-  correctIndex: number
-  selectedIndex: number | null
-  correct: boolean
-  timeSpentSec: number
-}
+  id: number;
+  topic: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  selectedIndex: number | null;
+  correct: boolean;
+  timeSpentSec: number;
+};
 
 type LocationState = {
-  result: ResultItem[]
-  totalCorrect: number
-  topicStats: Record<string, { correct: number; total: number }>
-  avgTimeSec: number
-  total: number
-}
+  result: ResultItem[];
+  totalCorrect: number;
+  topicStats: Record<string, { correct: number; total: number }>;
+  avgTimeSec: number;
+  total: number;
+};
 
 function formatSeconds(total: number) {
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
 const McqAnalysis = () => {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const state = (location.state || {}) as LocationState
+  const navigate = useNavigate();
+  const location = useLocation();
+  const state = (location.state || {}) as LocationState;
 
-  const hasData = Array.isArray(state.result) && state.result.length > 0
-  const total = state.total || 10
-  const scorePct = hasData ? Math.round((state.totalCorrect / total) * 100) : 0
+  // State for the "Retake MCQ" alert dialog
+  const [openRetakeDialog, setOpenRetakeDialog] = useState(false);
+  // State for the "Mock Interview" alert dialog
+  const [openMockInterviewDialog, setOpenMockInterviewDialog] = useState(false);
+
+  const hasData = Array.isArray(state.result) && state.result.length > 0;
+  const total = state.total || 10;
+  const scorePct = hasData ? Math.round((state.totalCorrect / total) * 100) : 0;
 
   if (!hasData) {
     return (
@@ -75,41 +89,41 @@ const McqAnalysis = () => {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
-  const incorrect = state.result.filter((r) => !r.correct)
-  const topics = Object.entries(state.topicStats)
+  const incorrect = state.result.filter((r) => !r.correct);
+  const topics = Object.entries(state.topicStats);
 
-  const MAX_TIME = 120
+  const MAX_TIME = 120;
   const timePct = Math.min(
     Math.round((state.avgTimeSec / MAX_TIME) * 100),
     100
-  )
+  );
   const timeData = [
     { name: "Time Used", value: timePct },
     { name: "Remaining", value: 100 - timePct },
-  ]
-  let scoreColor = "text-emerald-400"
-  if (state.totalCorrect <= 4) scoreColor = "text-rose-400"
-  else if (state.totalCorrect <= 7) scoreColor = "text-amber-400"
+  ];
+  let scoreColor = "text-emerald-400";
+  if (state.totalCorrect <= 4) scoreColor = "text-rose-400";
+  else if (state.totalCorrect <= 7) scoreColor = "text-amber-400";
 
   function AnimatedNumber({ value }: { value: number }) {
-    const count = useMotionValue(0)
-    const rounded = useTransform(count, (latest) => Math.round(latest))
+    const count = useMotionValue(0);
+    const rounded = useTransform(count, (latest) => Math.round(latest));
 
     useEffect(() => {
-      const controls = animate(count, value, { duration: 1 })
-      return controls.stop
-    }, [value, count])
+      const controls = animate(count, value, { duration: 1 });
+      return controls.stop;
+    }, [value, count]);
 
-    return <motion.span>{rounded}</motion.span>
+    return <motion.span>{rounded}</motion.span>;
   }
 
   const fadeInUp = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
-  }
+  };
 
   return (
     <div className="min-h-screen w-full bg-zinc-950 text-white p-8">
@@ -117,13 +131,12 @@ const McqAnalysis = () => {
 
       <div className="flex-1 flex flex-col gap-6">
         <AppStepper
-          currentStep={2.45}
-         steps={[
+          currentStep={2.8}
+          steps={[
             { icon: <User className="h-5 w-5" />, label: "Personal Details" },
             { icon: <FileText className="h-5 w-5" />, label: "Job Details" },
             { icon: <ListChecks className="h-5 w-5" />, label: "MCQ" },
             { icon: <Mic className="h-5 w-5" />, label: "Interview" },
-            { icon: <Award className="h-5 w-5" />, label: "Final" },
           ]}
         />
 
@@ -156,7 +169,7 @@ const McqAnalysis = () => {
                 <Label className="text-zinc-300">Topic-wise Accuracy</Label>
                 <div className="mt-4 space-y-3">
                   {topics.map(([topic, { correct, total }]) => {
-                    const pct = Math.round((correct / total) * 100)
+                    const pct = Math.round((correct / total) * 100);
                     const icon =
                       pct >= 70 ? (
                         <CheckCircle2 className="h-4 w-4 text-emerald-400" />
@@ -164,7 +177,7 @@ const McqAnalysis = () => {
                         <AlertTriangle className="h-4 w-4 text-amber-400" />
                       ) : (
                         <XCircle className="h-4 w-4 text-rose-400" />
-                      )
+                      );
 
                     return (
                       <div
@@ -180,11 +193,10 @@ const McqAnalysis = () => {
                         </div>
                         <Progress value={pct} className="mt-2 h-2" />
                       </div>
-                    )
+                    );
                   })}
                 </div>
               </div>
-              
               <div className="rounded-lg border border-zinc-700 p-5 flex flex-col items-center justify-center">
                 <Label className="text-zinc-300 flex items-center gap-2 mb-4">
                   <Clock className="h-5 w-5 text-blue-400" />
@@ -278,22 +290,60 @@ const McqAnalysis = () => {
             <div className="mt-8 flex items-center justify-end gap-3">
               <Button
                 className="bg-gray-800 text-white hover:bg-gray-700"
-                onClick={() => navigate("/add-jobs/mcq")}
+                onClick={() => setOpenRetakeDialog(true)}
               >
                 Retake MCQ
               </Button>
+              <AlertDialog open={openRetakeDialog} onOpenChange={setOpenRetakeDialog}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Retake MCQ Test?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Starting a new test will overwrite your previous results. Are you sure you want to continue?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setOpenRetakeDialog(false)}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction onClick={() => navigate("/add-jobs/mcq")}>
+                      Start New Test
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              {/* Added onClick to open the mock interview dialog */}
               <Button
                 className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
-                onClick={() => navigate("/add-jobs/mock-interview")}
+                onClick={() => setOpenMockInterviewDialog(true)}
               >
                 Mock Interview
               </Button>
+              {/* Added the AlertDialog for the mock interview button */}
+              <AlertDialog open={openMockInterviewDialog} onOpenChange={setOpenMockInterviewDialog}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Start Mock Interview?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Once started, the timer will begin for AI interview. Are you ready?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setOpenMockInterviewDialog(false)}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction onClick={() => navigate("/add-jobs/mock-interview")}>
+                      Yes, start now
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </motion.div>
         </section>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default McqAnalysis
+export default McqAnalysis;
