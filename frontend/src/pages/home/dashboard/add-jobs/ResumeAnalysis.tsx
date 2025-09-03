@@ -32,7 +32,13 @@ import {
 } from "@/components/ui/alert-dialog"
 
 const ResumeAnalysis = () => {
-  const [openDialog, setOpenDialog] = useState(false)
+  // === CHANGES START HERE ===
+  // State for the "Mock Interview" dialog
+  const [openInterviewDialog, setOpenInterviewDialog] = useState(false)
+  // State for the "Mock MCQ" dialog
+  const [openMcqDialog, setOpenMcqDialog] = useState(false)
+  // === CHANGES END HERE ===
+
   const navigate = useNavigate()
   return (
     <div className="min-h-screen w-full bg-zinc-950 text-white p-8">
@@ -41,7 +47,7 @@ const ResumeAnalysis = () => {
       <div className="flex-1 flex flex-col gap-6">
         <AppStepper
           currentStep={1.6}
-         steps={[
+          steps={[
             { icon: <User className="h-5 w-5" />, label: "Personal Details" },
             { icon: <FileText className="h-5 w-5" />, label: "Job Details" },
             { icon: <ListChecks className="h-5 w-5" />, label: "MCQ" },
@@ -301,16 +307,39 @@ const ResumeAnalysis = () => {
           </div>
 
           <div className="mt-8 flex items-center justify-end gap-3">
-            <Button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90">
+            {/* === CHANGES START HERE === */}
+            {/* The `onClick` and `open` props for the Mock Interview button and dialog have been updated */}
+            <Button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
+              onClick={() => setOpenInterviewDialog(true)}>
               Mock Interview
             </Button>
+            <AlertDialog open={openInterviewDialog} onOpenChange={setOpenInterviewDialog}>
+            {/* === CHANGES END HERE === */}
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Start Mock Interview?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Once started, the timer will begin for AI interview. Are you ready?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setOpenInterviewDialog(false)}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction onClick={() => navigate("/add-jobs/mock-interview")}>
+                    Start
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            
             <Button
               className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
-              onClick={() => setOpenDialog(true)}
+              onClick={() => setOpenMcqDialog(true)}
             >
               Mock MCQ
             </Button>
-            <AlertDialog open={openDialog} onOpenChange={setOpenDialog}>
+            <AlertDialog open={openMcqDialog} onOpenChange={setOpenMcqDialog}>
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Start Mock MCQ?</AlertDialogTitle>
@@ -319,7 +348,7 @@ const ResumeAnalysis = () => {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel onClick={() => setOpenDialog(false)}>
+                  <AlertDialogCancel onClick={() => setOpenMcqDialog(false)}>
                     Cancel
                   </AlertDialogCancel>
                   <AlertDialogAction onClick={() => navigate("/add-jobs/mcq")}>
@@ -334,4 +363,4 @@ const ResumeAnalysis = () => {
     </div>
   )
 };
-export default ResumeAnalysis
+export default ResumeAnalysis;

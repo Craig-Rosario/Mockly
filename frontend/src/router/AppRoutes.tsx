@@ -15,6 +15,7 @@ import MockInterview from "@/pages/home/dashboard/add-jobs/MockInterview"
 import LoginPage from "@/pages/home/login/LoginPage"
 import RegistrationPage from "@/pages/home/registration/RegistrationPage"
 
+
 const AppRoutes = () => {
   return (
     <Routes>
