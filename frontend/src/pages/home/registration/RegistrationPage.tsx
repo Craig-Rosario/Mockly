@@ -1,5 +1,5 @@
 import { GalleryVerticalEnd } from "lucide-react"
-import MocklyDesign from "@/assets/images/MocklyDesign.png"
+import MocklyDesignNew from "@/assets/images/MocklyDesignNew.png"
 import { RegistrationForm } from "../../../components/ui/registration-form"
 
 export default function RegistrationPage() {
@@ -22,7 +22,7 @@ export default function RegistrationPage() {
       </div>
       <div className="bg-muted relative hidden lg:block">
         <img
-          src={MocklyDesign}
+          src={MocklyDesignNew}
           alt="Image"
           className="absolute inset-0 h-full w-full object-cover"
         />

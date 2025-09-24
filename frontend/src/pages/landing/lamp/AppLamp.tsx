@@ -2,8 +2,11 @@
 import { motion } from "framer-motion";
 import { LampContainer } from "@/components/ui/lamp";
 import { InteractiveHoverButton } from "@/components/magicui/interactive-hover-button";
+import { useNavigate } from "react-router-dom";
 
 export function AppLamp() {
+
+    const navigate=useNavigate();
     return (
         <LampContainer>
             <motion.div
@@ -26,7 +29,7 @@ export function AppLamp() {
 
 
                 <div className="mt-10 flex justify-center">
-                    <InteractiveHoverButton aria-label="Get started">
+                    <InteractiveHoverButton aria-label="Get started" onClick={()=>navigate('/login')}>
                         Get Started
                     </InteractiveHoverButton>
                 </div>

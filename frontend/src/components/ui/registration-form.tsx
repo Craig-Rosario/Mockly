@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 
 type RegistrationFormProps = ComponentProps<"form"> & {
   onSwitch?: () => void
@@ -17,6 +17,7 @@ export function RegistrationForm({
   onSwitch,
   ...props
 }: RegistrationFormProps) {
+  const navigate=useNavigate();
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -108,7 +109,7 @@ export function RegistrationForm({
           ) : null}
         </div>
 
-        <Button type="submit" className="w-full" disabled={submitting}>
+        <Button type="submit" className="w-full" disabled={submitting} onClick={()=>navigate('/dashboard')}>
           {submitting ? "Registering..." : "Register"}
         </Button>
       </div>

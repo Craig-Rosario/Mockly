@@ -47,7 +47,7 @@ export function LoginForm({
         </div>
 
         {/* Submit navigates after your auth succeeds in onSubmit */}
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" onClick={()=>navigate('/dashboard')}>
           Login
         </Button>
 
