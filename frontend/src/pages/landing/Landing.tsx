@@ -3,7 +3,7 @@ import Faq from "./faq/Faq";
 import Features from "./features/Features";
 import { AppLamp } from "./lamp/AppLamp";
 import { AppNavbar } from "./navbar/AppNavBar";
-import Pricing from "./pricing/Pricing";
+// import Pricing from "./pricing/Pricing";
 import { ScrollTablet } from "./scroll-tablet/ScrollTablet";
 import Testimonials from "./testimonials/Testimonials";
 
@@ -15,7 +15,7 @@ const Landing = () => {
         <AppLamp />
         <ScrollTablet/>
         <Features/>
-        <Pricing/>
+        {/* <Pricing/> */}
         <Testimonials/>
         <Faq/>
         <Contact/>

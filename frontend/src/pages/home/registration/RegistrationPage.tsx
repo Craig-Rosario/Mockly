@@ -1,32 +1,39 @@
-import { GalleryVerticalEnd } from "lucide-react"
-import MocklyDesignNew from "@/assets/images/MocklyDesignNew.png"
-import { RegistrationForm } from "../../../components/ui/registration-form"
+import { ArrowLeft, GalleryVerticalEnd } from "lucide-react";
+import { SignUp } from "@clerk/clerk-react";
+import { useNavigate } from "react-router-dom";
 
 export default function RegistrationPage() {
+  const navigate = useNavigate();
+
   return (
-    <div className="grid min-h-svh lg:grid-cols-2">
-      <div className="flex flex-col gap-4 p-6 md:p-10">
-        <div className="flex justify-center gap-2 md:justify-start">
-          <a href="#" className="flex items-center gap-2 font-medium">
-            <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-              <GalleryVerticalEnd className="size-4" />
-            </div>
-            Mockly
-          </a>
-        </div>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-xs">
-            <RegistrationForm />
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0b0b0b] to-[#121212] text-white relative">
+      {/* Header */}
+      <div className="absolute top-6 left-6 flex items-center gap-3">
+        <ArrowLeft
+          className="cursor-pointer hover:text-gray-300 transition"
+          onClick={() => navigate("/login")}
+        />
+        <div className="flex items-center gap-2 font-medium text-white">
+          <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
+            <GalleryVerticalEnd className="size-4" />
           </div>
+          Mockly
         </div>
       </div>
-      <div className="bg-muted relative hidden lg:block">
-        <img
-          src={MocklyDesignNew}
-          alt="Image"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+
+      {/* Clerk SignUp */}
+      <div className="flex flex-1 items-center justify-center px-4">
+        <div className="w-full max-w-sm">
+          <SignUp
+            path="/registration"
+            routing="path"
+            signInUrl="/login"
+            afterSignUpUrl="/dashboard"
+            redirectUrl={null}
+          />
+
+        </div>
       </div>
     </div>
-  )
+  );
 }
