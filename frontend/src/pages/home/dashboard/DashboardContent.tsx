@@ -22,9 +22,40 @@ import {
     Plus,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { useAuth } from "@clerk/clerk-react"
+import { useEffect, useState } from "react"
+
+interface User {
+    _id: string;
+    name: string;
+    email: string;
+    clerkId: string;
+}
+
 const DashboardContent: React.FC = () => {
-    const navigate=useNavigate();
-    const handleClick=()=>{
+
+    const { getToken } = useAuth();
+    const [user, setUser] = useState<User | null>(null);
+
+    useEffect(() => {
+        try {
+            const fetchUser = async () => {
+                const token = await getToken();
+                const res = await fetch("http://localhost:5000/api/current-user", {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const data = await res.json();
+                setUser(data);
+
+            }
+            fetchUser();
+        } catch (err) {
+            console.log("Cannot fetch user:", err);
+        }
+    }, [])
+
+    const navigate = useNavigate();
+    const handleClick = () => {
         navigate('/add-jobs/personal-details')
     }
 
@@ -57,9 +88,13 @@ const DashboardContent: React.FC = () => {
 
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h2 className="text-3xl font-bold bg-clip-text text-white">
-                        Hi User
-                    </h2>
+                    {user ? (
+                        <h2 className="text-3xl font-bold bg-clip-text text-white">
+                            Hi {user.name}
+                        </h2>
+                    ) : (
+                        <p>Hi User</p>
+                    )}
                 </div>
             </div>
 

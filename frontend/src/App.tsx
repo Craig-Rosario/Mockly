@@ -1,7 +1,10 @@
-import AppRoutes from './router/AppRoutes'
+import AppRoutes from "./router/AppRoutes";
+import { useSyncUser } from "./hooks/useSyncUser";
 
 function App() {
-  return <AppRoutes />; 
+  useSyncUser();
+
+  return <AppRoutes />;
 }
 
 export default App;
