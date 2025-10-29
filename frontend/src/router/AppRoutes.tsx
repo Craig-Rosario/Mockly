@@ -28,6 +28,9 @@ import FinalReport from "@/pages/home/dashboard/add-jobs/FinalReport";
 import MockInterview from "@/pages/home/dashboard/add-jobs/MockInterview";
 import MockInterviewAnalysis from "@/pages/home/dashboard/add-jobs/MockInterviewAnalysis";
 
+// Context
+import { JobApplicationProvider } from "@/contexts/JobApplicationContext";
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -77,7 +80,9 @@ const AppRoutes = () => {
         path="/add-jobs/personal-details"
         element={
           <Protect fallback={<RedirectToSignIn redirectUrl="/login" />}>
-            <PersonalDetails />
+            <JobApplicationProvider>
+              <PersonalDetails />
+            </JobApplicationProvider>
           </Protect>
         }
       />
@@ -85,7 +90,9 @@ const AppRoutes = () => {
         path="/add-jobs/job-details"
         element={
           <Protect fallback={<RedirectToSignIn redirectUrl="/login" />}>
-            <JobDetails />
+            <JobApplicationProvider>
+              <JobDetails />
+            </JobApplicationProvider>
           </Protect>
         }
       />
@@ -93,7 +100,9 @@ const AppRoutes = () => {
         path="/add-jobs/resume-analysis"
         element={
           <Protect fallback={<RedirectToSignIn redirectUrl="/login" />}>
-            <ResumeAnalysis />
+            <JobApplicationProvider>
+              <ResumeAnalysis />
+            </JobApplicationProvider>
           </Protect>
         }
       />
@@ -101,7 +110,9 @@ const AppRoutes = () => {
         path="/add-jobs/mcq"
         element={
           <Protect fallback={<RedirectToSignIn redirectUrl="/login" />}>
-            <Mcq />
+            <JobApplicationProvider>
+              <Mcq />
+            </JobApplicationProvider>
           </Protect>
         }
       />
@@ -109,7 +120,9 @@ const AppRoutes = () => {
         path="/add-jobs/mcq-analysis"
         element={
           <Protect fallback={<RedirectToSignIn redirectUrl="/login" />}>
-            <McqAnalysis />
+            <JobApplicationProvider>
+              <McqAnalysis />
+            </JobApplicationProvider>
           </Protect>
         }
       />
@@ -117,7 +130,9 @@ const AppRoutes = () => {
         path="/add-jobs/mock-interview"
         element={
           <Protect fallback={<RedirectToSignIn redirectUrl="/login" />}>
-            <MockInterview />
+            <JobApplicationProvider>
+              <MockInterview />
+            </JobApplicationProvider>
           </Protect>
         }
       />
@@ -125,7 +140,9 @@ const AppRoutes = () => {
         path="/add-jobs/mock-interview-analysis"
         element={
           <Protect fallback={<RedirectToSignIn redirectUrl="/login" />}>
-            <MockInterviewAnalysis />
+            <JobApplicationProvider>
+              <MockInterviewAnalysis />
+            </JobApplicationProvider>
           </Protect>
         }
       />
@@ -133,7 +150,9 @@ const AppRoutes = () => {
         path="/add-jobs/final-report"
         element={
           <Protect fallback={<RedirectToSignIn redirectUrl="/login" />}>
-            <FinalReport />
+            <JobApplicationProvider>
+              <FinalReport />
+            </JobApplicationProvider>
           </Protect>
         }
       />

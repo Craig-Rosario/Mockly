@@ -7,7 +7,6 @@ export default function RegistrationPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0b0b0b] to-[#121212] text-white relative">
-      {/* Header */}
       <div className="absolute top-6 left-6 flex items-center gap-3">
         <ArrowLeft
           className="cursor-pointer hover:text-gray-300 transition"
@@ -21,7 +20,6 @@ export default function RegistrationPage() {
         </div>
       </div>
 
-      {/* Clerk SignUp */}
       <div className="flex flex-1 items-center justify-center px-4">
         <div className="w-full max-w-sm">
           <SignUp
@@ -29,7 +27,14 @@ export default function RegistrationPage() {
             routing="path"
             signInUrl="/login"
             afterSignUpUrl="/dashboard"
-            redirectUrl={null}
+            forceRedirectUrl="/dashboard"
+            fallbackRedirectUrl="/dashboard"
+            appearance={{
+              elements: {
+                formButtonPrimary: "bg-primary hover:bg-primary/90",
+                footerActionLink: "text-primary hover:text-primary/90",
+              },
+            }}
           />
 
         </div>

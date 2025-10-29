@@ -17,8 +17,15 @@ createRoot(document.getElementById("root")!).render(
       publishableKey={PUBLISHABLE_KEY}
       signInUrl="/login"
       signUpUrl="/registration"
+      afterSignInUrl="/dashboard"
+      afterSignUpUrl="/dashboard"
       signInForceRedirectUrl="/dashboard"
-      signUpFallbackRedirectUrl="/dashboard"
+      signUpForceRedirectUrl="/dashboard"
+      appearance={{
+        variables: {
+          colorPrimary: "#3b82f6",
+        },
+      }}
     >
       <BrowserRouter>
         <App />
