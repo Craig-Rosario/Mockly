@@ -10,17 +10,96 @@ import {
 import { useNavigate } from "react-router-dom"
 import { useState } from "react"
 import MLoader from "@/components/custom/Mloader"
+import { useJobApplication } from "@/contexts/JobApplicationContext"
+import { useAuth } from "@clerk/react-router"
+import { jobApplicationApi } from "@/lib/api"
 
 const JobDetails = () => {
   const navigate = useNavigate()
+  const { applicationData, updateJobDetails, submitApplication } = useJobApplication()
+  const { getToken } = useAuth()
   const [loading, setLoading] = useState(false)
+
+  const [formData, setFormData] = useState({
+    jobTitle: applicationData.jobDetails.jobTitle || '',
+    company: applicationData.jobDetails.company || '',
+    location: applicationData.jobDetails.location || '',
+    workMode: applicationData.jobDetails.workMode || 'Remote',
+    jobType: applicationData.jobDetails.jobType || '',
+    jobIndustry: applicationData.jobDetails.jobIndustry || '',
+    jobDescription: applicationData.jobDetails.jobDescription || '',
+    requiredSkills: applicationData.jobDetails.requiredSkills?.join(', ') || ''
+  })
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
 
   const goBack = () => navigate("/add-jobs/personal-details")
 
   const handleResumeAnalysis = async () => {
+    if (!formData.jobTitle || !formData.company || !formData.location) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    console.log('Current form data:', formData)
+    console.log('Current application data:', applicationData)
+
+    const jobDetailsData = {
+      jobTitle: formData.jobTitle,
+      company: formData.company,
+      location: formData.location,
+      workMode: formData.workMode,
+      jobType: formData.jobType,
+      jobIndustry: formData.jobIndustry,
+      jobDescription: formData.jobDescription,
+      requiredSkills: formData.requiredSkills.split(',').map(skill => skill.trim()).filter(skill => skill)
+    }
+
+    updateJobDetails(jobDetailsData)
+
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 1800))
-    navigate("/add-jobs/resume-analysis")
+    
+    try {
+      const token = await getToken();
+      
+      const testData = {
+        ...applicationData.personalDetails,
+        ...jobDetailsData
+      };
+      
+      console.log('Testing API connection with data:', testData);
+      
+      const testResult = await jobApplicationApi.testConnection(testData, token || undefined);
+      console.log('Test API call successful:', testResult);
+      
+      const submitResult = await submitApplication({
+        jobDetails: jobDetailsData
+      })
+      console.log('Job application submitted successfully:', submitResult)
+      
+      try {
+        const debugResponse = await fetch('/api/users/debug-applications', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const debugData = await debugResponse.json();
+        console.log('Debug verification:', debugData);
+      } catch (debugError) {
+        console.error('Debug verification failed:', debugError);
+      }
+      
+      await new Promise((r) => setTimeout(r, 1800))
+      navigate("/add-jobs/resume-analysis")
+    } catch (error) {
+      console.error('Failed to submit application:', error)
+      alert(`Failed to submit application: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -51,33 +130,67 @@ const JobDetails = () => {
         <section className="rounded-lg border bg-zinc-900 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label className="text-gray-300">Job Title</Label>
-              <Input placeholder="Enter job title..." className="bg-gray-800 text-white placeholder:text-gray-400" />
+              <Label className="text-gray-300">Job Title *</Label>
+              <Input 
+                placeholder="Enter job title..." 
+                className="bg-gray-800 text-white placeholder:text-gray-400"
+                value={formData.jobTitle}
+                onChange={(e) => handleInputChange('jobTitle', e.target.value)}
+                required
+              />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-gray-300">Company Name</Label>
-              <Input placeholder="Enter company name..." className="bg-gray-800 text-white placeholder:text-gray-400" />
+              <Label className="text-gray-300">Company Name *</Label>
+              <Input 
+                placeholder="Enter company name..." 
+                className="bg-gray-800 text-white placeholder:text-gray-400"
+                value={formData.company}
+                onChange={(e) => handleInputChange('company', e.target.value)}
+                required
+              />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-gray-300">Job Location</Label>
-              <Input placeholder="Enter job location/remote" className="bg-gray-800 text-white placeholder:text-gray-400" />
+              <Label className="text-gray-300">Job Location *</Label>
+              <Input 
+                placeholder="Enter job location/remote" 
+                className="bg-gray-800 text-white placeholder:text-gray-400"
+                value={formData.location}
+                onChange={(e) => handleInputChange('location', e.target.value)}
+                required
+              />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-gray-300">Required years of experience</Label>
-              <Input type="number" placeholder="Enter required years of experience" className="bg-gray-800 text-white placeholder:text-gray-400" />
+              <Label className="text-gray-300">Work Mode</Label>
+              <Select value={formData.workMode} onValueChange={(value) => handleInputChange('workMode', value)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select work mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="Remote">Remote</SelectItem>
+                    <SelectItem value="Hybrid">Hybrid</SelectItem>
+                    <SelectItem value="Onsite">Onsite</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
               <Label className="text-gray-300">Job Type</Label>
-              <Input placeholder="Enter Job Type (fulltime/intern)" className="bg-gray-800 text-white placeholder:text-gray-400" />
+              <Input 
+                placeholder="Enter Job Type (fulltime/intern)" 
+                className="bg-gray-800 text-white placeholder:text-gray-400"
+                value={formData.jobType}
+                onChange={(e) => handleInputChange('jobType', e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">
               <Label className="text-gray-300">Job Industry</Label>
-              <Select>
+              <Select value={formData.jobIndustry} onValueChange={(value) => handleInputChange('jobIndustry', value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Enter job industry" />
                 </SelectTrigger>
@@ -86,6 +199,10 @@ const JobDetails = () => {
                     <SelectItem value="tech">Tech</SelectItem>
                     <SelectItem value="hr">HR</SelectItem>
                     <SelectItem value="finance">Finance</SelectItem>
+                    <SelectItem value="healthcare">Healthcare</SelectItem>
+                    <SelectItem value="education">Education</SelectItem>
+                    <SelectItem value="retail">Retail</SelectItem>
+                    <SelectItem value="manufacturing">Manufacturing</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectGroup>
                 </SelectContent>
@@ -95,12 +212,22 @@ const JobDetails = () => {
 
           <div className="space-y-2 mt-6 w-full">
             <Label className="text-gray-300">Job Description</Label>
-            <Textarea placeholder="Enter job description..." className="bg-gray-800 text-white placeholder:text-gray-400" />
+            <Textarea 
+              placeholder="Enter job description..." 
+              className="bg-gray-800 text-white placeholder:text-gray-400"
+              value={formData.jobDescription}
+              onChange={(e) => handleInputChange('jobDescription', e.target.value)}
+            />
           </div>
 
           <div className="space-y-2 mt-6 w-full">
             <Label className="text-gray-300">Required Tech Stack</Label>
-            <Textarea placeholder="e.g. React, Angular, Postgres" className="bg-gray-800 text-white placeholder:text-gray-400" />
+            <Textarea 
+              placeholder="e.g. React, Angular, PostgreSQL" 
+              className="bg-gray-800 text-white placeholder:text-gray-400"
+              value={formData.requiredSkills}
+              onChange={(e) => handleInputChange('requiredSkills', e.target.value)}
+            />
           </div>
 
           <div className="mt-6 flex items-center justify-between">

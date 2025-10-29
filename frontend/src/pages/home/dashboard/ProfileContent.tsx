@@ -34,7 +34,7 @@ export default function ProfileContent() {
     const fetchUser = async () => {
       try {
         const token = await getToken()
-        const res = await fetch("http://localhost:5000/api/current-user", {
+        const res = await fetch("/api/users/current-user", {
           headers: { Authorization: `Bearer ${token}` },
         })
         const data = await res.json()
@@ -55,7 +55,7 @@ export default function ProfileContent() {
               Hi {user.name}
             </h2>
           ) : (
-            <p>Hi User</p>
+            <h2 className="text-3xl font-bold bg-clip-text text-white">Hi User</h2>
           )}
         </div>
         <Button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90 px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-md">

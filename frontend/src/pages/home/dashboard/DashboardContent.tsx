@@ -41,7 +41,7 @@ const DashboardContent: React.FC = () => {
         try {
             const fetchUser = async () => {
                 const token = await getToken();
-                const res = await fetch("http://localhost:5000/api/current-user", {
+                const res = await fetch("/api/users/current-user", {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const data = await res.json();
@@ -93,7 +93,7 @@ const DashboardContent: React.FC = () => {
                             Hi {user.name}
                         </h2>
                     ) : (
-                        <p>Hi User</p>
+                        <h2 className="text-3xl font-bold bg-clip-text text-white">Hi User</h2>
                     )}
                 </div>
             </div>

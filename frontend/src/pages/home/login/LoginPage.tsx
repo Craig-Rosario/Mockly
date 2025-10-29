@@ -7,7 +7,6 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#0b0b0b] to-[#121212] text-white relative">
-      {/* Header */}
       <div className="absolute top-6 left-6 flex items-center gap-3">
         <ArrowLeft
           className="cursor-pointer hover:text-gray-300 transition"
@@ -21,7 +20,6 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Clerk SignIn */}
       <div className="flex flex-1 items-center justify-center px-4">
         <div className="w-full max-w-sm">
           <SignIn
@@ -29,6 +27,7 @@ export default function LoginPage() {
             routing="path"
             signUpUrl="/registration"
             afterSignInUrl="/dashboard"
+            forceRedirectUrl="/dashboard"
             appearance={{
               elements: {
                 formButtonPrimary: "bg-primary hover:bg-primary/90",
