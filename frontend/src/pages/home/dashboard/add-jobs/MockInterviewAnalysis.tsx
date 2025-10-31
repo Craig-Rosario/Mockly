@@ -88,12 +88,13 @@ const MockInterviewAnalysis = () => {
 
       <div className="flex-1 flex flex-col gap-6">
         <AppStepper
-          currentStep={4.8}
+          currentStep={3.3}
           steps={[
             { icon: <User className="h-5 w-5" />, label: "Personal Details" },
             { icon: <FileText className="h-5 w-5" />, label: "Job Details" },
             { icon: <ListChecks className="h-5 w-5" />, label: "MCQ" },
             { icon: <Mic className="h-5 w-5" />, label: "Interview" },
+            { icon: <Award className="h-5 w-5" />, label: "Final" },
           ]}
         />
 

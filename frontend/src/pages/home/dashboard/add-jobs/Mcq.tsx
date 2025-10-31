@@ -1,18 +1,18 @@
-import { useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { useNavigate, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import AppStepper from "@/components/custom/AppStepper"
 import { User, FileText, ListChecks, Mic, Timer, Award } from "lucide-react"
 import MLoader from "@/components/custom/Mloader"
+import { useApiCall } from "@/lib/api"
 
 type Question = {
-  id: number
-  topic: string
   question: string
   options: string[]
-  correctIndex: number
+  correctAnswer: string
+  topic?: string
 }
 
 type AnswerState = {
@@ -30,95 +30,76 @@ function formatSeconds(total: number) {
 
 const Mcq = () => {
   const navigate = useNavigate()
-
-  // Mock "AI-generated" questions with topics
-  const questions: Question[] = useMemo(
-    () => [
-      {
-        id: 1,
-        topic: "JavaScript",
-        question: "Which method creates a new array with elements that pass a test?",
-        options: ["map()", "filter()", "reduce()", "forEach()"],
-        correctIndex: 1,
-      },
-      {
-        id: 2,
-        topic: "React",
-        question: "What hook is used to perform side effects in function components?",
-        options: ["useState", "useMemo", "useEffect", "useCallback"],
-        correctIndex: 2,
-      },
-      {
-        id: 3,
-        topic: "TypeScript",
-        question: "Which TypeScript feature helps catch type errors at compile time?",
-        options: ["Interfaces", "Generics", "Type checking", "Enums"],
-        correctIndex: 2,
-      },
-      {
-        id: 4,
-        topic: "Web",
-        question: "Which HTTP method is idempotent and used to retrieve data?",
-        options: ["POST", "PUT", "GET", "PATCH"],
-        correctIndex: 2,
-      },
-      {
-        id: 5,
-        topic: "React",
-        question: "Which prop must be unique when rendering a list in React?",
-        options: ["id", "key", "name", "index"],
-        correctIndex: 1,
-      },
-      {
-        id: 6,
-        topic: "JavaScript",
-        question: "What keyword declares a block-scoped variable?",
-        options: ["var", "let", "const", "static"],
-        correctIndex: 1,
-      },
-      {
-        id: 7,
-        topic: "TypeScript",
-        question: "What TypeScript feature allows restricting a variable to specific values?",
-        options: ["Union types", "Type assertions", "Any type", "Decorators"],
-        correctIndex: 0,
-      },
-      {
-        id: 8,
-        topic: "Web",
-        question: "Which status code means 'Not Found'?",
-        options: ["200", "301", "404", "500"],
-        correctIndex: 2,
-      },
-      {
-        id: 9,
-        topic: "React",
-        question: "React components should be:",
-        options: ["Mutable", "Impure", "Stateless only", "Pure when possible"],
-        correctIndex: 3,
-      },
-      {
-        id: 10,
-        topic: "JavaScript",
-        question: "Which of the following is NOT a primitive type?",
-        options: ["string", "number", "object", "boolean"],
-        correctIndex: 2,
-      },
-    ],
-    [],
-  )
-
+  const location = useLocation()
+  const apiCall = useApiCall()
+  
+  // Get applicationId from location state or URL params
+  const applicationId = location.state?.applicationId || new URLSearchParams(location.search).get('applicationId')
+  
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [currentIdx, setCurrentIdx] = useState(0)
-  const [answers, setAnswers] = useState<AnswerState[]>(
-    Array.from({ length: questions.length }, () => ({
-      selectedIndex: null,
-      timeSpentSec: 0,
-    })),
-  )
+  const [answers, setAnswers] = useState<AnswerState[]>([])
   const [timeLeft, setTimeLeft] = useState(SECONDS_PER_QUESTION)
-  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
+  // Load MCQs when component mounts
   useEffect(() => {
+    if (!applicationId) {
+      setError("No application ID provided")
+      setIsLoading(false)
+      return
+    }
+
+    loadMCQs()
+  }, [applicationId])
+
+  const loadMCQs = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      // First, try to get existing MCQs
+      let mcqData
+      try {
+        mcqData = await apiCall(`/users/job-application/${applicationId}/mcqs`, {
+          method: 'GET'
+        })
+      } catch (err: any) {
+        // If MCQs don't exist, generate them
+        if (err.message.includes('404') || err.message.includes('not found')) {
+          console.log("MCQs not found, generating new ones...")
+          mcqData = await apiCall(`/users/job-application/${applicationId}/generate-mcqs`, {
+            method: 'POST'
+          })
+          mcqData = mcqData.mcq
+        } else {
+          throw err
+        }
+      }
+
+      if (mcqData && mcqData.questions) {
+        setQuestions(mcqData.questions)
+        setAnswers(Array.from({ length: mcqData.questions.length }, () => ({
+          selectedIndex: null,
+          timeSpentSec: 0,
+        })))
+      } else {
+        throw new Error("Invalid MCQ data received")
+      }
+    } catch (err: any) {
+      console.error("Error loading MCQs:", err)
+      setError(err.message || "Failed to load MCQs")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Timer effect
+  useEffect(() => {
+    if (questions.length === 0) return
+
     const timer = setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 1) {
@@ -129,12 +110,11 @@ const Mcq = () => {
       })
     }, 1000)
     return () => clearInterval(timer)
-  }, [currentIdx])
+  }, [currentIdx, questions.length])
 
+  // Reset timer when question changes (not when answers change)
   useEffect(() => {
-    const spent = answers[currentIdx]?.timeSpentSec ?? 0
-    const remaining = Math.max(0, SECONDS_PER_QUESTION - spent)
-    setTimeLeft(remaining || SECONDS_PER_QUESTION)
+    setTimeLeft(SECONDS_PER_QUESTION)
   }, [currentIdx])
 
   const handleSelect = (optIndex: number) => {
@@ -186,9 +166,13 @@ const Mcq = () => {
     }
   }
 
-  const handleSubmit = () => {
-    setLoading(true)
-    setTimeout(() => {
+  const handleSubmit = async () => {
+    setSubmitting(true)
+    
+    try {
+      console.log("Starting MCQ submission...");
+      
+      // Finalize current answer timing
       const finalizedAnswers = answers.map((a, idx) =>
         idx === currentIdx
           ? {
@@ -198,14 +182,57 @@ const Mcq = () => {
           : a,
       )
 
+      // Prepare submission data
+      const submissionData = finalizedAnswers.map((answer, index) => ({
+        questionIndex: index,
+        selectedAnswer: answer.selectedIndex !== null ? questions[index].options[answer.selectedIndex] : '',
+        timeSpent: answer.timeSpentSec
+      }))
+
+      const totalTimeTaken = finalizedAnswers.reduce((sum, answer) => sum + answer.timeSpentSec, 0)
+
+      console.log("Submission data:", submissionData);
+      console.log("Total time taken:", totalTimeTaken);
+
+      // Submit to backend
+      const response = await apiCall(`/users/job-application/${applicationId}/submit-mcqs`, {
+        method: 'POST',
+        body: JSON.stringify({
+          answers: submissionData,
+          timeTaken: totalTimeTaken
+        })
+      })
+
+      console.log("MCQ submission response:", response);
+
+      // Calculate results for frontend navigation
       const result = questions.map((q, idx) => {
-        const user = finalizedAnswers[idx]
-        const isCorrect = user.selectedIndex === q.correctIndex
+        const userAnswer = finalizedAnswers[idx]
+        
+        // Debug logging for answer comparison
+        console.log(`Question ${idx + 1}:`, {
+          question: q.question.substring(0, 50) + "...",
+          correctAnswer: q.correctAnswer,
+          options: q.options,
+          selectedIndex: userAnswer.selectedIndex,
+          selectedOption: userAnswer.selectedIndex !== null ? q.options[userAnswer.selectedIndex] : null
+        });
+        
+        const correctIndex = q.options.findIndex(opt => opt === q.correctAnswer)
+        console.log(`Question ${idx + 1} correctIndex:`, correctIndex);
+        
+        const isCorrect = userAnswer.selectedIndex !== null && 
+                         userAnswer.selectedIndex === correctIndex
+        
         return {
-          ...q,
-          selectedIndex: user.selectedIndex,
+          id: idx + 1,
+          topic: q.topic || 'General',
+          question: q.question,
+          options: q.options,
+          correctIndex: correctIndex,
+          selectedIndex: userAnswer.selectedIndex,
           correct: isCorrect,
-          timeSpentSec: user.timeSpentSec,
+          timeSpentSec: userAnswer.timeSpentSec,
         }
       })
 
@@ -218,6 +245,18 @@ const Mcq = () => {
       }, {})
       const avgTimeSec = Math.round(result.reduce((sum, r) => sum + (r.timeSpentSec || 0), 0) / result.length)
 
+      console.log("Calculated results:", {
+        result,
+        totalCorrect,
+        topicStats,
+        avgTimeSec,
+        total: questions.length,
+        applicationId
+      });
+
+      console.log("Navigating to MCQ analysis page...");
+
+      // Navigate to results page
       navigate("/add-jobs/mcq-analysis", {
         state: {
           result,
@@ -225,11 +264,54 @@ const Mcq = () => {
           topicStats,
           avgTimeSec,
           total: questions.length,
+          applicationId
         },
       })
-    }, 1500)
+      
+      console.log("Navigation completed");
+      
+    } catch (err: any) {
+      console.error("Error submitting MCQs:", err)
+      setError(err.message || "Failed to submit answers")
+      setSubmitting(false)
+    }
   }
-  if (loading) {
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 z-[100] grid place-items-center bg-black/80 backdrop-blur-sm">
+        <div className="flex flex-col items-center">
+          <MLoader size={140} />
+          <span className="mt-3 text-sm text-zinc-400">Loading MCQ Questions...</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen w-full bg-zinc-950 text-white p-8">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-3xl font-bold mb-6">Mock MCQ</h1>
+          <div className="bg-red-900/20 border border-red-500 rounded-lg p-6">
+            <h2 className="text-red-400 font-semibold mb-2">Error Loading MCQs</h2>
+            <p className="text-red-300">{error}</p>
+            <Button 
+              onClick={() => navigate(-1)} 
+              className="mt-4 bg-red-600 hover:bg-red-700"
+            >
+              Go Back
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Submitting state
+  if (submitting) {
     return (
       <div className="fixed inset-0 z-[100] grid place-items-center bg-black/80 backdrop-blur-sm">
         <div className="flex flex-col items-center">
@@ -240,11 +322,31 @@ const Mcq = () => {
     )
   }
 
+  // No questions loaded
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen w-full bg-zinc-950 text-white p-8">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-3xl font-bold mb-6">Mock MCQ</h1>
+          <div className="bg-yellow-900/20 border border-yellow-500 rounded-lg p-6">
+            <h2 className="text-yellow-400 font-semibold mb-2">No Questions Available</h2>
+            <p className="text-yellow-300">No MCQ questions were generated for this application.</p>
+            <Button 
+              onClick={() => navigate(-1)} 
+              className="mt-4 bg-yellow-600 hover:bg-yellow-700"
+            >
+              Go Back
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const q = questions[currentIdx]
   const progress = Math.round(((currentIdx + 1) / questions.length) * 100)
 
   return (
-
     <div className="min-h-screen w-full bg-zinc-950 text-white p-8">
       <h1 className="text-3xl font-bold mb-6">Mock MCQ</h1>
 
@@ -297,7 +399,7 @@ const Mcq = () => {
                     <div className="flex items-center gap-3">
                       <input
                         type="radio"
-                        name={`q-${q.id}`}
+                        name={`q-${currentIdx}`}
                         checked={selected}
                         onChange={() => handleSelect(idx)}
                         className="h-4 w-4 accent-blue-500"

@@ -106,7 +106,7 @@ export const analyzeResumeWithGemini = async (resumeContent, personalDetails, jo
 };
 
 /**
- * Generate MCQs based on job description
+ * Generate MCQs using Gemini AI
  * @param {Object} jobDetails - Job details including description and required skills
  * @returns {Promise<Object>} - Generated MCQs
  */
@@ -114,10 +114,10 @@ export const generateMCQsWithGemini = async (jobDetails) => {
   try {
     const model = genAI.getGenerativeModel({ 
       model: "gemini-2.5-flash",
-      generationConfig: mcqConfig
+      generationConfig: modelConfig
     });
 
-    const prompt = createMCQPrompt(resumeData, jobDetails);
+    const prompt = createMCQPrompt(jobDetails);
     
     const result = await model.generateContent(prompt);
     const response = await result.response;

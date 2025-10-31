@@ -431,7 +431,10 @@ const ResumeAnalysis = () => {
                   <AlertDialogCancel onClick={() => setOpenMcqDialog(false)}>
                     Cancel
                   </AlertDialogCancel>
-                  <AlertDialogAction onClick={() => navigate("/add-jobs/mcq")}>
+                  <AlertDialogAction onClick={() => {
+                    const applicationId = localStorage.getItem('currentApplicationId')
+                    navigate("/add-jobs/mcq", { state: { applicationId } })
+                  }}>
                     Start
                   </AlertDialogAction>
                 </AlertDialogFooter>
