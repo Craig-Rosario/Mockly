@@ -210,33 +210,40 @@ const ResumeAnalysis = () => {
             <div className="rounded-lg border border-zinc-700 p-5">
               <Label className="text-zinc-300">Things that match</Label>
               <ul className="mt-3 space-y-2">
-                <li className="flex items-center gap-2 text-sm text-zinc-200">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" /> React
-                </li>
-                <li className="flex items-center gap-2 text-sm text-zinc-200">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" /> TypeScript
-                </li>
-                <li className="flex items-center gap-2 text-sm text-zinc-200">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" /> REST APIs
-                </li>
-                <li className="flex items-center gap-2 text-sm text-zinc-200">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Express
-                </li>
+                {analysisData?.keywordAnalysis?.neededKeywords
+                  ?.filter((keyword: any) => keyword.found)
+                  ?.map((keyword: any, index: number) => (
+                    <li key={index} className="flex items-center gap-2 text-sm text-zinc-200">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" /> {keyword.keyword}
+                    </li>
+                  )) || (
+                  <li className="flex items-center gap-2 text-sm text-zinc-400">
+                    <CheckCircle2 className="h-4 w-4 text-zinc-500" /> Analyzing matched skills...
+                  </li>
+                )}
+                {(!analysisData?.keywordAnalysis?.neededKeywords?.some((k: any) => k.found)) && analysisData?.keywordAnalysis && (
+                  <li className="text-sm text-zinc-400">No matching keywords found</li>
+                )}
               </ul>
             </div>
 
             <div className="rounded-lg border border-zinc-700 p-5">
               <Label className="text-zinc-300">Things that are missing</Label>
               <ul className="mt-3 space-y-2">
-                <li className="flex items-center gap-2 text-sm text-zinc-200">
-                  <XCircle className="h-4 w-4 text-rose-400" /> Flutter (production)
-                </li>
-                <li className="flex items-center gap-2 text-sm text-zinc-200">
-                  <XCircle className="h-4 w-4 text-rose-400" /> PostgreSQL
-                </li>
-                <li className="flex items-center gap-2 text-sm text-zinc-200">
-                  <XCircle className="h-4 w-4 text-rose-400" /> Docker
-                </li>
+                {analysisData?.keywordAnalysis?.neededKeywords
+                  ?.filter((keyword: any) => !keyword.found)
+                  ?.map((keyword: any, index: number) => (
+                    <li key={index} className="flex items-center gap-2 text-sm text-zinc-200">
+                      <XCircle className="h-4 w-4 text-rose-400" /> {keyword.keyword}
+                    </li>
+                  )) || (
+                  <li className="flex items-center gap-2 text-sm text-zinc-400">
+                    <XCircle className="h-4 w-4 text-zinc-500" /> Analyzing missing skills...
+                  </li>
+                )}
+                {(!analysisData?.keywordAnalysis?.neededKeywords?.some((k: any) => !k.found)) && analysisData?.keywordAnalysis && (
+                  <li className="text-sm text-zinc-400">All required skills found!</li>
+                )}
               </ul>
             </div>
           </div>

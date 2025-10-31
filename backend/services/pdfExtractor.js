@@ -114,10 +114,19 @@ export const extractTextFromPDFWithFallback = async (filePath) => {
 export const isValidPDF = (filePath) => {
   try {
     console.log('Validating PDF file:', filePath);
+    console.log('Working directory:', process.cwd());
     
-    if (!fs.existsSync(filePath)) {
-      console.log('PDF file does not exist at path:', filePath);
-      return false;
+    // Normalize the path for Windows
+    const normalizedPath = path.resolve(filePath);
+    console.log('Normalized path:', normalizedPath);
+    
+    if (!fs.existsSync(normalizedPath)) {
+      console.log('PDF file does not exist at normalized path:', normalizedPath);
+      // Try original path too
+      if (!fs.existsSync(filePath)) {
+        console.log('PDF file does not exist at original path either:', filePath);
+        return false;
+      }
     }
     
     const stats = fs.statSync(filePath);
@@ -138,14 +147,19 @@ export const isValidPDF = (filePath) => {
     }
     
     // Read first few bytes to check PDF header
-    const buffer = fs.readFileSync(filePath, { start: 0, end: 4 });
-    const header = buffer.toString('ascii');
-    console.log('PDF header:', header);
-    
-    const isValid = header === '%PDF';
-    console.log('PDF validation result:', isValid);
-    
-    return isValid;
+    try {
+      const buffer = fs.readFileSync(filePath, { start: 0, end: 4 });
+      const header = buffer.toString('ascii');
+      console.log('PDF header:', header);
+      
+      const isValid = header === '%PDF';
+      console.log('PDF validation result:', isValid);
+      
+      return isValid;
+    } catch (headerError) {
+      console.error('Error reading PDF header:', headerError);
+      return false;
+    }
   } catch (error) {
     console.error('Error validating PDF:', error);
     return false;
