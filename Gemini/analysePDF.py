@@ -22,7 +22,8 @@ model = genai.GenerativeModel(
 
 def analyse_resume_gemini(resume_content, job_description):
     prompt = f"""
-    You are an expert AI resume analyzer. Analyze the resume against the job description and return a structured JSON.
+    You are an expert AI resume analyzer. Analyze the following resume text, which includes clear sections
+    like Education, Experience, Projects, and Technical Skills. Use these to structure your analysis.
 
     Resume:
     ```

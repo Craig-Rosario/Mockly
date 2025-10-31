@@ -12,7 +12,7 @@ import { useState } from "react"
 import MLoader from "@/components/custom/Mloader"
 import { useJobApplication } from "@/contexts/JobApplicationContext"
 import { useAuth } from "@clerk/react-router"
-import { jobApplicationApi } from "@/lib/api"
+import { jobApplicationApi, resumeAnalysisApi } from "@/lib/api"
 
 const JobDetails = () => {
   const navigate = useNavigate()
@@ -77,10 +77,10 @@ const JobDetails = () => {
       const testResult = await jobApplicationApi.testConnection(testData, token || undefined);
       console.log('Test API call successful:', testResult);
       
-      const submitResult = await submitApplication({
+      await submitApplication({
         jobDetails: jobDetailsData
       })
-      console.log('Job application submitted successfully:', submitResult)
+      console.log('Job application submitted successfully')
       
       try {
         const debugResponse = await fetch('/api/users/debug-applications', {
@@ -92,7 +92,8 @@ const JobDetails = () => {
         console.error('Debug verification failed:', debugError);
       }
       
-      await new Promise((r) => setTimeout(r, 1800))
+      // Navigate to resume analysis page immediately
+      // The analysis will be triggered from the ResumeAnalysis component
       navigate("/add-jobs/resume-analysis")
     } catch (error) {
       console.error('Failed to submit application:', error)

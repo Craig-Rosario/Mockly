@@ -2,8 +2,11 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import AppStepper from "@/components/custom/AppStepper"
+import MLoader from "@/components/custom/Mloader"
 import { useNavigate } from "react-router-dom"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useAuth } from "@clerk/clerk-react"
+import { resumeAnalysisApi } from "@/lib/api"
 import {
   User,
   FileText,
@@ -32,14 +35,109 @@ import {
 } from "@/components/ui/alert-dialog"
 
 const ResumeAnalysis = () => {
-  // === CHANGES START HERE ===
-  // State for the "Mock Interview" dialog
+  const [analysisData, setAnalysisData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [analysisStatus, setAnalysisStatus] = useState('pending')
+  
+  // State for dialogs
   const [openInterviewDialog, setOpenInterviewDialog] = useState(false)
-  // State for the "Mock MCQ" dialog
   const [openMcqDialog, setOpenMcqDialog] = useState(false)
-  // === CHANGES END HERE ===
 
   const navigate = useNavigate()
+  const { getToken } = useAuth()
+
+  useEffect(() => {
+    const analyzeResume = async () => {
+      try {
+        const applicationId = localStorage.getItem('currentApplicationId')
+        if (!applicationId) {
+          setError('No application found. Please complete your job application first.')
+          setLoading(false)
+          return
+        }
+
+        const token = await getToken()
+        if (!token) {
+          setError('Authentication required')
+          setLoading(false)
+          return
+        }
+
+        console.log('Starting resume analysis for application:', applicationId)
+        
+        // First check if analysis already exists
+        try {
+          const existingAnalysis = await resumeAnalysisApi.getAnalysis(applicationId, token)
+          if (existingAnalysis.status === 'completed' && existingAnalysis.analysis) {
+            console.log('Found existing analysis:', existingAnalysis.analysis)
+            setAnalysisData(existingAnalysis.analysis)
+            setAnalysisStatus('completed')
+            setLoading(false)
+            return
+          }
+        } catch (err) {
+          console.log('No existing analysis found, starting new analysis...')
+        }
+
+        // Trigger new analysis
+        setAnalysisStatus('processing')
+        console.log('Triggering resume analysis...')
+        
+        const analysisResult = await resumeAnalysisApi.analyzeResume(applicationId, token)
+        console.log('Analysis completed:', analysisResult)
+        
+        setAnalysisData(analysisResult.analysis)
+        setAnalysisStatus('completed')
+        setLoading(false)
+
+      } catch (err: any) {
+        console.error('Resume analysis error:', err)
+        setError(err.message || 'Failed to analyze resume')
+        setAnalysisStatus('error')
+        setLoading(false)
+      }
+    }
+
+    analyzeResume()
+  }, [getToken])
+  // Show loading state while analysis is processing
+  if (loading || analysisStatus === 'processing') {
+    return (
+      <div className="min-h-screen w-full bg-zinc-950 text-white p-8">
+        <h1 className="text-3xl font-bold mb-6">Resume Analysis</h1>
+        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+          <MLoader size={120} />
+          <div className="text-center">
+            <h2 className="text-xl font-semibold mb-2">Analyzing Your Resume</h2>
+            <p className="text-gray-400">
+              Our AI is carefully evaluating your resume against the job requirements...
+            </p>
+            <p className="text-sm text-gray-500 mt-2">This may take 30-60 seconds</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen w-full bg-zinc-950 text-white p-8">
+        <h1 className="text-3xl font-bold mb-6">Resume Analysis</h1>
+        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold mb-2 text-red-400">Analysis Failed</h2>
+            <p className="text-gray-400 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700">
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen w-full bg-zinc-950 text-white p-8">
       <h1 className="text-3xl font-bold mb-6">Resume Analysis</h1>
@@ -60,26 +158,40 @@ const ResumeAnalysis = () => {
           <div className="rounded-lg border border-zinc-700 p-5">
             <div className="flex items-center justify-between">
               <Label className="text-zinc-300">Match Score</Label>
-              <span className="text-2xl font-semibold">64%</span>
+              <span className="text-2xl font-semibold">
+                {analysisData?.matchScore ? `${analysisData.matchScore}%` : 'N/A'}
+              </span>
             </div>
-            <Progress value={64} className="mt-3 h-2" />
+            <Progress value={analysisData?.matchScore || 0} className="mt-3 h-2" />
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="rounded-lg border border-zinc-700 p-5">
               <div className="flex items-center justify-between">
                 <Label className="text-zinc-300">Needed Keywords</Label>
-                <span className="text-sm text-zinc-400">50% covered</span>
+                <span className="text-sm text-zinc-400">
+                  {analysisData?.keywordAnalysis?.coveragePercentage ? `${analysisData.keywordAnalysis.coveragePercentage}% covered` : 'Calculating...'}
+                </span>
               </div>
-              <Progress value={50} className="mt-3 h-2" />
+              <Progress value={analysisData?.keywordAnalysis?.coveragePercentage || 0} className="mt-3 h-2" />
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-md px-2.5 py-1 text-xs border border-emerald-500/30 text-emerald-300 bg-emerald-500/10">React</span>
-                <span className="rounded-md px-2.5 py-1 text-xs border border-emerald-500/30 text-emerald-300 bg-emerald-500/10">TypeScript</span>
-                <span className="rounded-md px-2.5 py-1 text-xs border border-zinc-700 text-zinc-300 bg-zinc-800">Flutter</span>
-                <span className="rounded-md px-2.5 py-1 text-xs border border-zinc-700 text-zinc-300 bg-zinc-800">PostgreSQL</span>
-                <span className="rounded-md px-2.5 py-1 text-xs border border-emerald-500/30 text-emerald-300 bg-emerald-500/10">REST APIs</span>
-                <span className="rounded-md px-2.5 py-1 text-xs border border-zinc-700 text-zinc-300 bg-zinc-800">Linux</span>
+                {analysisData?.keywordAnalysis?.neededKeywords?.map((keyword: any, index: number) => (
+                  <span
+                    key={index}
+                    className={`rounded-md px-2.5 py-1 text-xs border ${
+                      keyword.found
+                        ? 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10'
+                        : 'border-zinc-700 text-zinc-300 bg-zinc-800'
+                    }`}
+                  >
+                    {keyword.keyword}
+                  </span>
+                )) || (
+                  <>
+                    <span className="rounded-md px-2.5 py-1 text-xs border border-zinc-700 text-zinc-300 bg-zinc-800">Loading keywords...</span>
+                  </>
+                )}
               </div>
             </div>
 
@@ -89,8 +201,7 @@ const ResumeAnalysis = () => {
                 <Label className="text-zinc-300">Overall Suggestions</Label>
               </div>
               <p className="mt-3 text-sm text-zinc-300 leading-relaxed">
-                Add concrete impact (metrics), expand internship bullets with scope/ownership,
-                and cover missing stack items if you have real experience with them.
+                {analysisData?.overallSuggestions || 'Analyzing your resume to provide personalized suggestions...'}
               </p>
             </div>
           </div>
@@ -133,118 +244,80 @@ const ResumeAnalysis = () => {
           <div className="mt-8 rounded-lg border border-zinc-700 p-5">
             <div className="mb-4 flex items-center gap-2">
               <Briefcase className="h-5 w-5 text-zinc-300" />
-              <h3 className="text-lg font-semibold">Internship Experience</h3>
+              <h3 className="text-lg font-semibold">Experience Analysis</h3>
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-lg border border-zinc-700 p-4 md:flex md:items-start md:justify-between">
-                <div>
-                  <div className="font-medium">Fullstack Developer — SwDC</div>
-                  <div className="text-xs text-zinc-400">Dec 2024 - Aug 2024</div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">React</span>
-                    <span className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">Node</span>
-                    <span className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">MongoDB</span>
-                    <span className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">Express</span>
+              {analysisData?.experienceAnalysis?.length > 0 ? (
+                analysisData.experienceAnalysis.map((exp: any, index: number) => (
+                  <div key={index} className="rounded-lg border border-zinc-700 p-4 md:flex md:items-start md:justify-between">
+                    <div>
+                      <div className="font-medium">{exp.title}</div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">
+                          Experience
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-4 md:mt-0 md:w-80">
+                      <div className="text-xs text-zinc-400">Relevance</div>
+                      <Progress value={(exp.relevanceScore / 10) * 100} className="h-2 mt-1" />
+                      <div className="mt-3 text-xs text-zinc-400">Depth / Ownership</div>
+                      <Progress value={(exp.depthScore / 10) * 100} className="h-2 mt-1" />
+                      <ul className="mt-3 list-disc pl-4 text-xs text-zinc-300 space-y-1">
+                        {exp.suggestions?.map((suggestion: string, suggestionIndex: number) => (
+                          <li key={suggestionIndex}>{suggestion}</li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="rounded-lg border border-zinc-700 p-4 text-center text-zinc-400">
+                  No experience data available or still analyzing...
                 </div>
-                <div className="mt-4 md:mt-0 md:w-80">
-                  <div className="text-xs text-zinc-400">Relevance</div>
-                  <Progress value={62} className="h-2 mt-1" />
-                  <div className="mt-3 text-xs text-zinc-400">Depth / Ownership</div>
-                  <Progress value={45} className="h-2 mt-1" />
-                  <ul className="mt-3 list-disc pl-4 text-xs text-zinc-300 space-y-1">
-                    <li>Quantify outcomes in detail</li>
-                    <li>Mention the results</li>
-                    <li>Explain how the stack was used</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-zinc-700 p-4 md:flex md:items-start md:justify-between">
-                <div>
-                  <div className="font-medium">Applied for — Google</div>
-                  <div className="text-xs text-zinc-400">Jan - Apr 2024</div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <span className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">React</span>
-                    <span className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">Vite</span>
-                    <span className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">Tailwind</span>
-                  </div>
-                </div>
-                <div className="mt-4 md:mt-0 md:w-80">
-                  <div className="text-xs text-zinc-400">Relevance</div>
-                  <Progress value={16} className="h-2 mt-1" />
-                  <div className="mt-3 text-xs text-zinc-400">Depth / Ownership</div>
-                  <Progress value={12} className="h-2 mt-1" />
-                  <ul className="mt-3 list-disc pl-4 text-xs text-zinc-300 space-y-1">
-                    <li>You didn't work here bru</li>
-                  </ul>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
           <div className="mt-8 rounded-lg border border-zinc-700 p-5">
             <div className="mb-4 flex items-center gap-2">
               <Rocket className="h-5 w-5 text-zinc-300" />
-              <h3 className="text-lg font-semibold">Project Suggestions</h3>
+              <h3 className="text-lg font-semibold">Project Analysis</h3>
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-lg border border-zinc-700 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="font-medium">Realtime Chat</div>
-                </div>
-                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div>
-                    <div className="text-xs text-zinc-400">Relevance</div>
-                    <Progress value={66} className="h-2 mt-1" />
+              {analysisData?.projectAnalysis?.length > 0 ? (
+                analysisData.projectAnalysis.map((project: any, index: number) => (
+                  <div key={index} className="rounded-lg border border-zinc-700 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="font-medium">{project.title}</div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div>
+                        <div className="text-xs text-zinc-400">Relevance</div>
+                        <Progress value={(project.relevanceScore / 10) * 100} className="h-2 mt-1" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-zinc-400">Complexity (0-8)</div>
+                        <Progress value={(project.complexityScore / 8) * 100} className="h-2 mt-1" />
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-xs text-zinc-400">Suggestions</div>
+                      <ul className="mt-1 list-disc pl-4 text-xs text-zinc-300 space-y-1">
+                        {project.suggestions?.map((suggestion: string, suggestionIndex: number) => (
+                          <li key={suggestionIndex}>{suggestion}</li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-xs text-zinc-400">Complexity (0-8)</div>
-                    <Progress value={(4 / 8) * 100} className="h-2 mt-1" />
-                  </div>
+                ))
+              ) : (
+                <div className="rounded-lg border border-zinc-700 p-4 text-center text-zinc-400">
+                  No project data available or still analyzing...
                 </div>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <span className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">Next.js</span>
-                  <span className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">Socket.io</span>
-                </div>
-                <div className="mt-3">
-                  <div className="text-xs text-zinc-400">Suggestions</div>
-                  <ul className="mt-1 list-disc pl-4 text-xs text-zinc-300 space-y-1">
-                    <li>Add auth/roles</li>
-                    <li>Add E2E tests</li>
-                    <li>Share live demo</li>
-                    <li>Deploy the project</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-zinc-700 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="font-medium">Todo List</div>
-                </div>
-                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div>
-                    <div className="text-xs text-zinc-400">Relevance</div>
-                    <Progress value={24} className="h-2 mt-1" />
-                  </div>
-                  <div>
-                    <div className="text-xs text-zinc-400">Complexity (0-8)</div>
-                    <Progress value={(2 / 8) * 100} className="h-2 mt-1" />
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <span className="rounded-md border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300">MERN</span>
-                </div>
-                <div className="mt-3">
-                  <div className="text-xs text-zinc-400">Suggestions</div>
-                  <ul className="mt-1 list-disc pl-4 text-xs text-zinc-300 space-y-1">
-                    <li>Deploy project</li>
-                    <li>Increase scope — currently basic</li>
-                  </ul>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 

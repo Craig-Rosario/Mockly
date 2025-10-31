@@ -68,6 +68,20 @@ const JobDetailsSchema = new mongoose.Schema({
     strengths: [String],
     areasForImprovement: [String],
     generatedAt: Date
+  },
+  
+  // Reference to the resume analysis
+  resumeAnalysisId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ResumeAnalysis',
+    default: null
+  },
+  
+  // Status of resume analysis
+  resumeAnalysisStatus: {
+    type: String,
+    enum: ['pending', 'processing', 'completed', 'error'],
+    default: 'pending'
   }
 }, { timestamps: true });
 

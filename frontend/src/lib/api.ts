@@ -129,3 +129,26 @@ export const jobApplicationApi = {
       body: JSON.stringify(data),
     }, token),
 };
+
+// Resume Analysis API calls
+export const resumeAnalysisApi = {
+  // Trigger resume analysis
+  analyzeResume: (applicationId: string, token?: string) =>
+    apiCall(`/users/analyze-resume/${applicationId}`, {
+      method: 'POST'
+    }, token),
+
+  // Get analysis results
+  getAnalysis: (applicationId: string, token?: string) =>
+    apiCall(`/users/resume-analysis/${applicationId}`, {}, token),
+
+  // Check analysis status
+  getAnalysisStatus: async (applicationId: string, token?: string) => {
+    try {
+      const result = await apiCall(`/users/resume-analysis/${applicationId}`, {}, token);
+      return result.status || 'completed'; // 'pending', 'processing', 'completed', 'error'
+    } catch (error) {
+      return 'not_found';
+    }
+  }
+};
