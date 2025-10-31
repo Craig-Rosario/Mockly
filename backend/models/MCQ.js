@@ -38,8 +38,8 @@ const MCQSchema = new mongoose.Schema({
     totalQuestions: { type: Number, default: 0 },
     correctAnswers: { type: Number, default: 0 },
     incorrectAnswers: { type: Number, default: 0 },
-    score: { type: Number, default: 0 }, // percentage
-    timeTaken: { type: Number, default: 0 }, // in seconds
+    score: { type: Number, default: 0 }, 
+    timeTaken: { type: Number, default: 0 }, 
     answersSubmitted: [{
       questionIndex: Number,
       selectedAnswer: String,
@@ -58,7 +58,7 @@ const MCQSchema = new mongoose.Schema({
   completedAt: Date
 }, { timestamps: true });
 
-// Index for faster queries
+
 MCQSchema.index({ userId: 1, jobApplicationId: 1 });
 MCQSchema.index({ userId: 1, createdAt: -1 });
 

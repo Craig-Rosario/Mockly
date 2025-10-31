@@ -33,7 +33,6 @@ const Mcq = () => {
   const location = useLocation()
   const apiCall = useApiCall()
   
-  // Get applicationId from location state or URL params
   const applicationId = location.state?.applicationId || new URLSearchParams(location.search).get('applicationId')
   
   const [questions, setQuestions] = useState<Question[]>([])
@@ -44,7 +43,6 @@ const Mcq = () => {
   const [timeLeft, setTimeLeft] = useState(SECONDS_PER_QUESTION)
   const [submitting, setSubmitting] = useState(false)
 
-  // Load MCQs when component mounts
   useEffect(() => {
     if (!applicationId) {
       setError("No application ID provided")
@@ -59,15 +57,12 @@ const Mcq = () => {
     try {
       setIsLoading(true)
       setError(null)
-
-      // First, try to get existing MCQs
       let mcqData
       try {
         mcqData = await apiCall(`/users/job-application/${applicationId}/mcqs`, {
           method: 'GET'
         })
       } catch (err: any) {
-        // If MCQs don't exist, generate them
         if (err.message.includes('404') || err.message.includes('not found')) {
           console.log("MCQs not found, generating new ones...")
           mcqData = await apiCall(`/users/job-application/${applicationId}/generate-mcqs`, {
@@ -96,7 +91,6 @@ const Mcq = () => {
     }
   }
 
-  // Timer effect
   useEffect(() => {
     if (questions.length === 0) return
 
@@ -112,7 +106,6 @@ const Mcq = () => {
     return () => clearInterval(timer)
   }, [currentIdx, questions.length])
 
-  // Reset timer when question changes (not when answers change)
   useEffect(() => {
     setTimeLeft(SECONDS_PER_QUESTION)
   }, [currentIdx])
@@ -172,7 +165,6 @@ const Mcq = () => {
     try {
       console.log("Starting MCQ submission...");
       
-      // Finalize current answer timing
       const finalizedAnswers = answers.map((a, idx) =>
         idx === currentIdx
           ? {
@@ -182,7 +174,6 @@ const Mcq = () => {
           : a,
       )
 
-      // Prepare submission data
       const submissionData = finalizedAnswers.map((answer, index) => ({
         questionIndex: index,
         selectedAnswer: answer.selectedIndex !== null ? questions[index].options[answer.selectedIndex] : '',
@@ -194,7 +185,6 @@ const Mcq = () => {
       console.log("Submission data:", submissionData);
       console.log("Total time taken:", totalTimeTaken);
 
-      // Submit to backend
       const response = await apiCall(`/users/job-application/${applicationId}/submit-mcqs`, {
         method: 'POST',
         body: JSON.stringify({
@@ -205,11 +195,9 @@ const Mcq = () => {
 
       console.log("MCQ submission response:", response);
 
-      // Calculate results for frontend navigation
       const result = questions.map((q, idx) => {
         const userAnswer = finalizedAnswers[idx]
         
-        // Debug logging for answer comparison
         console.log(`Question ${idx + 1}:`, {
           question: q.question.substring(0, 50) + "...",
           correctAnswer: q.correctAnswer,
@@ -256,7 +244,6 @@ const Mcq = () => {
 
       console.log("Navigating to MCQ analysis page...");
 
-      // Navigate to results page
       navigate("/add-jobs/mcq-analysis", {
         state: {
           result,
@@ -277,7 +264,6 @@ const Mcq = () => {
     }
   }
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-[100] grid place-items-center bg-black/80 backdrop-blur-sm">
@@ -374,9 +360,6 @@ const Mcq = () => {
           </div>
 
           <div className="mt-6 flex items-center justify-end mr-1">
-            {/* <div className="text-sm text-zinc-400">
-              Topic: <span className="text-zinc-200">{q.topic}</span>
-            </div> */}
             <div className="flex items-center gap-2 text-sm text-zinc-400">
               <Timer className="h-4 w-4" />
               <span>Time left: {formatSeconds(timeLeft)}</span>

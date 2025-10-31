@@ -66,7 +66,6 @@ const ResumeAnalysis = () => {
 
         console.log('Starting resume analysis for application:', applicationId)
         
-        // First check if analysis already exists
         try {
           const existingAnalysis = await resumeAnalysisApi.getAnalysis(applicationId, token)
           if (existingAnalysis.status === 'completed' && existingAnalysis.analysis) {
@@ -80,7 +79,7 @@ const ResumeAnalysis = () => {
           console.log('No existing analysis found, starting new analysis...')
         }
 
-        // Trigger new analysis
+
         setAnalysisStatus('processing')
         console.log('Triggering resume analysis...')
         

@@ -69,22 +69,17 @@ const McqAnalysis = () => {
   const apiCall = useApiCall();
   const state = (location.state || {}) as LocationState;
 
-  // State management
   const [processedResults, setProcessedResults] = useState<ResultItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllQuestions, setShowAllQuestions] = useState(false);
   
-  // State for the "Retake MCQ" alert dialog
   const [openRetakeDialog, setOpenRetakeDialog] = useState(false);
-  // State for the "Mock Interview" alert dialog
   const [openMockInterviewDialog, setOpenMockInterviewDialog] = useState(false);
 
-  // Motion hooks - MUST be at the top before any conditional returns
   const count = useMotionValue(0);
   const rounded = useTransform(count, (latest) => Math.round(latest));
 
-  // Get applicationId from state or localStorage
   const applicationId = state.applicationId || localStorage.getItem('currentApplicationId');
 
   console.log("MCQ Analysis - received state:", state);
@@ -92,7 +87,6 @@ const McqAnalysis = () => {
 
   useEffect(() => {
     try {
-      // If we have results from the navigation state, use them
       if (state.result && state.result.length > 0) {
         console.log("Using results from navigation state");
         setProcessedResults(state.result);
@@ -100,7 +94,6 @@ const McqAnalysis = () => {
         return;
       }
 
-      // Otherwise, fetch results from backend
       if (applicationId) {
         console.log("Fetching results from backend");
         fetchMCQResults();
@@ -115,7 +108,6 @@ const McqAnalysis = () => {
     }
   }, [applicationId, state.result]);
 
-  // Animation effect for score counter
   useEffect(() => {
     if (processedResults.length > 0) {
       const totalCorrect = processedResults.filter(r => r.correct).length;
@@ -139,7 +131,6 @@ const McqAnalysis = () => {
       console.log("MCQ results response:", response);
 
       if (response.results && response.questions) {
-        // Process the results to match the expected format
         const processed = response.questions.map((question: MCQQuestion, index: number) => {
           const userAnswer = response.results.answersSubmitted.find(
             (answer: any) => answer.questionIndex === index
@@ -246,7 +237,6 @@ const McqAnalysis = () => {
     );
   }
 
-  // Calculate statistics
   const total = processedResults.length;
   const totalCorrect = processedResults.filter(r => r.correct).length;
   const scorePct = Math.round((totalCorrect / total) * 100);
@@ -332,7 +322,6 @@ const McqAnalysis = () => {
                 {topics.map(([topic, stats]) => {
                   const topicPct = Math.round((stats.correct / stats.total) * 100);
                   
-                  // Determine color and icon based on performance
                   const getPerformanceIcon = (percentage: number) => {
                     if (percentage >= 80) return <CheckCircle2 className="h-4 w-4 text-emerald-400" />;
                     if (percentage >= 60) return <AlertTriangle className="h-4 w-4 text-yellow-400" />;
