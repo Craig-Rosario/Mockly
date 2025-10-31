@@ -2,9 +2,10 @@ import express from "express";
 import { clerkClient, requireAuth } from "@clerk/express";
 import User from "../models/Users.js";
 import ResumeAnalysis from "../models/ResumeAnalysis.js";
+import MCQ from "../models/MCQ.js";
 import { uploadResume, getResumeUrl, deleteResumeFile } from "../config/fileUpload.js";
 import { extractTextFromPDFWithFallback, isValidPDF } from "../services/pdfExtractor.js";
-import { analyzeResumeWithGemini } from "../services/geminiService.js";
+import { analyzeResumeWithGemini, generateMCQsWithGemini } from "../services/geminiService.js";
 import path from 'path';
 import fs from 'fs';
 
@@ -697,5 +698,294 @@ router.get("/resume-analysis/:applicationId", requireAuth(), async (req, res) =>
         });
     }
 });
+
+// MCQ Routes
+
+// Generate MCQs for a job application
+router.post("/job-application/:applicationId/generate-mcqs", requireAuth(), async (req, res) => {
+    try {
+        const clerkUserId = req.auth.userId;
+        const { applicationId } = req.params;
+        
+        // Find user and job application
+        const user = await User.findOne({ clerkId: clerkUserId });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const application = user.jobApplications.id(applicationId);
+        if (!application) {
+            return res.status(404).json({ message: "Job application not found" });
+        }
+
+        // Check if MCQs already exist for this application
+        const existingMCQ = await MCQ.findOne({
+            userId: user._id,
+            jobApplicationId: applicationId
+        });
+
+        if (existingMCQ) {
+            return res.json({
+                message: "MCQs already generated for this application",
+                mcq: existingMCQ
+            });
+        }
+
+        // Generate MCQs using Gemini
+        console.log("Generating MCQs for job application:", applicationId);
+        const geminiResult = await generateMCQsWithGemini({
+            jobTitle: application.jobTitle,
+            company: application.company,
+            jobDescription: application.jobDescription,
+            requiredSkills: application.requiredSkills,
+            jobIndustry: application.jobIndustry
+        });
+
+        // Process and store MCQs
+        const mcqQuestions = geminiResult.mcqs.map((mcq, index) => {
+            // Convert letter answer (A, B, C, D) to actual option text
+            const letterToIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 };
+            const correctIndex = letterToIndex[mcq.correct_answer];
+            const correctAnswerText = mcq.options[correctIndex];
+            
+            return {
+                question: mcq.question,
+                options: mcq.options,
+                correctAnswer: correctAnswerText,
+                topic: mcq.topic || extractTopicFromQuestion(mcq.question, application.requiredSkills)
+            };
+        });
+
+        // Create MCQ document
+        const mcqDoc = new MCQ({
+            userId: user._id,
+            jobApplicationId: applicationId,
+            jobDescription: application.jobDescription,
+            questions: mcqQuestions,
+            mcqStatus: 'generated'
+        });
+
+        await mcqDoc.save();
+
+        res.status(201).json({
+            message: "MCQs generated successfully",
+            mcq: mcqDoc
+        });
+
+    } catch (error) {
+        console.error("MCQ generation error:", error);
+        res.status(500).json({
+            message: "Failed to generate MCQs",
+            error: error.message
+        });
+    }
+});
+
+// Get MCQs for a job application
+router.get("/job-application/:applicationId/mcqs", requireAuth(), async (req, res) => {
+    try {
+        const clerkUserId = req.auth.userId;
+        const { applicationId } = req.params;
+        
+        const user = await User.findOne({ clerkId: clerkUserId });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const mcq = await MCQ.findOne({
+            userId: user._id,
+            jobApplicationId: applicationId
+        });
+
+        if (!mcq) {
+            return res.status(404).json({ message: "MCQs not found for this application" });
+        }
+
+        res.json(mcq);
+
+    } catch (error) {
+        console.error("Get MCQs error:", error);
+        res.status(500).json({
+            message: "Failed to retrieve MCQs",
+            error: error.message
+        });
+    }
+});
+
+// Submit MCQ answers and calculate results
+router.post("/job-application/:applicationId/submit-mcqs", requireAuth(), async (req, res) => {
+    try {
+        const clerkUserId = req.auth.userId;
+        const { applicationId } = req.params;
+        const { answers, timeTaken } = req.body; // answers: [{ questionIndex, selectedAnswer, timeSpent }]
+        
+        const user = await User.findOne({ clerkId: clerkUserId });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const mcq = await MCQ.findOne({
+            userId: user._id,
+            jobApplicationId: applicationId
+        });
+
+        if (!mcq) {
+            return res.status(404).json({ message: "MCQs not found for this application" });
+        }
+
+        if (mcq.mcqStatus === 'completed') {
+            return res.status(400).json({ message: "MCQs already completed for this application" });
+        }
+
+        // Calculate results
+        let correctAnswers = 0;
+        const answersSubmitted = [];
+        const topicStats = {};
+
+        answers.forEach((answer, index) => {
+            const question = mcq.questions[answer.questionIndex];
+            const isCorrect = answer.selectedAnswer === question.correctAnswer;
+            
+            if (isCorrect) correctAnswers++;
+
+            // Track topic-wise performance
+            const topic = question.topic || 'General';
+            if (!topicStats[topic]) {
+                topicStats[topic] = { correct: 0, total: 0 };
+            }
+            topicStats[topic].total++;
+            if (isCorrect) topicStats[topic].correct++;
+
+            answersSubmitted.push({
+                questionIndex: answer.questionIndex,
+                selectedAnswer: answer.selectedAnswer,
+                isCorrect,
+                timeSpent: answer.timeSpent || 0
+            });
+        });
+
+        // Calculate topic-wise performance
+        const topicWisePerformance = Object.keys(topicStats).map(topic => ({
+            topic,
+            correct: topicStats[topic].correct,
+            total: topicStats[topic].total,
+            percentage: Math.round((topicStats[topic].correct / topicStats[topic].total) * 100)
+        }));
+
+        const totalQuestions = mcq.questions.length;
+        const score = Math.round((correctAnswers / totalQuestions) * 100);
+
+        // Update MCQ with results
+        mcq.results = {
+            totalQuestions,
+            correctAnswers,
+            incorrectAnswers: totalQuestions - correctAnswers,
+            score,
+            timeTaken: timeTaken || 0,
+            answersSubmitted,
+            topicWisePerformance,
+            completedAt: new Date()
+        };
+        mcq.mcqStatus = 'completed';
+        mcq.completedAt = new Date();
+
+        await mcq.save();
+
+        // Update job application with MCQ results
+        const application = user.jobApplications.id(applicationId);
+        if (application) {
+            application.mcqResults = {
+                score,
+                totalQuestions,
+                correctAnswers,
+                timeTaken: timeTaken || 0,
+                completedAt: new Date()
+            };
+            await user.save();
+        }
+
+        res.json({
+            message: "MCQ results saved successfully",
+            results: mcq.results
+        });
+
+    } catch (error) {
+        console.error("Submit MCQs error:", error);
+        res.status(500).json({
+            message: "Failed to submit MCQ answers",
+            error: error.message
+        });
+    }
+});
+
+// Get MCQ results for a job application
+router.get("/job-application/:applicationId/mcq-results", requireAuth(), async (req, res) => {
+    try {
+        const clerkUserId = req.auth.userId;
+        const { applicationId } = req.params;
+        
+        const user = await User.findOne({ clerkId: clerkUserId });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const mcq = await MCQ.findOne({
+            userId: user._id,
+            jobApplicationId: applicationId,
+            mcqStatus: 'completed'
+        });
+
+        if (!mcq) {
+            return res.status(404).json({ message: "MCQ results not found" });
+        }
+
+        res.json({
+            results: mcq.results,
+            questions: mcq.questions,
+            completedAt: mcq.completedAt
+        });
+
+    } catch (error) {
+        console.error("Get MCQ results error:", error);
+        res.status(500).json({
+            message: "Failed to retrieve MCQ results",
+            error: error.message
+        });
+    }
+});
+
+// Helper function to extract topic from question
+function extractTopicFromQuestion(question, requiredSkills = []) {
+    const questionLower = question.toLowerCase();
+    
+    // Check for common technology keywords
+    const techKeywords = {
+        'JavaScript': ['javascript', 'js', 'node.js', 'react', 'vue', 'angular'],
+        'Python': ['python', 'django', 'flask', 'pandas', 'numpy'],
+        'Java': ['java', 'spring', 'hibernate'],
+        'Database': ['sql', 'database', 'mysql', 'postgresql', 'mongodb'],
+        'Web Development': ['html', 'css', 'frontend', 'backend', 'api'],
+        'Cloud': ['aws', 'azure', 'gcp', 'cloud', 'docker', 'kubernetes'],
+        'General': []
+    };
+
+    // First check required skills
+    for (const skill of requiredSkills) {
+        if (questionLower.includes(skill.toLowerCase())) {
+            return skill;
+        }
+    }
+
+    // Then check predefined keywords
+    for (const [topic, keywords] of Object.entries(techKeywords)) {
+        for (const keyword of keywords) {
+            if (questionLower.includes(keyword)) {
+                return topic;
+            }
+        }
+    }
+
+    return 'General';
+}
 
 export default router;

@@ -152,3 +152,30 @@ export const resumeAnalysisApi = {
     }
   }
 };
+
+// MCQ API endpoints
+export const mcqApi = {
+  // Generate MCQs for a job application
+  generateMCQs: (applicationId: string, token?: string) =>
+    apiCall(`/users/job-application/${applicationId}/generate-mcqs`, {
+      method: 'POST'
+    }, token),
+
+  // Get MCQs for a job application
+  getMCQs: (applicationId: string, token?: string) =>
+    apiCall(`/users/job-application/${applicationId}/mcqs`, {}, token),
+
+  // Submit MCQ answers
+  submitMCQs: (applicationId: string, answers: any[], timeTaken: number, token?: string) =>
+    apiCall(`/users/job-application/${applicationId}/submit-mcqs`, {
+      method: 'POST',
+      body: JSON.stringify({
+        answers,
+        timeTaken
+      })
+    }, token),
+
+  // Get MCQ results
+  getMCQResults: (applicationId: string, token?: string) =>
+    apiCall(`/users/job-application/${applicationId}/mcq-results`, {}, token)
+};
