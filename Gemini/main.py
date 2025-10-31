@@ -12,12 +12,17 @@ app.secret_key = 'a_very_unique_and_secret_string'
 
 
 def extract_text_from_resume(pdf_path):
-    """Extract text from a PDF resume using PyMuPDF."""
+    import fitz
     doc = fitz.open(pdf_path)
-    text = ""
+    sections = []
     for page in doc:
-        text += page.get_text()
-    return text
+        text = page.get_text("text")
+        sections.append(text.strip())
+    resume_text = "\n".join(sections)
+
+    resume_text = "\n".join(line.strip() for line in resume_text.splitlines() if line.strip())
+    return resume_text
+
 
 
 def format_json_to_markdown(data):

@@ -22,9 +22,11 @@ model = genai.GenerativeModel(
 
 def analyse_resume_gemini(resume_content, job_description):
     prompt = f"""
-    You are an expert AI resume analyzer. Analyze the resume against the job description and return a structured JSON.
+    You are an expert AI resume evaluator trained to interpret unstructured resume text.
 
-    Resume:
+    Your goal: Analyze the candidate's resume against the provided job description and return structured, accurate, and complete insights in JSON format only.
+
+    Resume Text (may not be perfectly formatted):
     ```
     {resume_content}
     ```
@@ -34,30 +36,58 @@ def analyse_resume_gemini(resume_content, job_description):
     {job_description}
     ```
 
-    Return only a single valid JSON object with this structure:
+    Please extract and infer details — even if the resume lacks clear headings. 
+    Detect experience, projects, and skills by recognizing contextual cues such as:
+    - Phrases like "worked at", "interned", "developed", "built", "led", "contributed to".
+    - Mentions of technologies, responsibilities, and outcomes.
+    - Bullet points that describe achievements or deliverables.
 
-    1.  `matchScore`: Integer 0–100 (overall match percentage).
-    2.  `keywordAnalysis`: Object with:
-        - `coveragePercentage`: Integer 0–100.
-        - `neededKeywords`: Array of objects, each having (include **only concrete technical skills**, e.g., programming languages, frameworks, libraries, tools, platforms, databases, etc.; **ignore generic descriptive terms**):
-            - `keyword`: String.
-            - `found`: Boolean.
-    3.  `overallSuggestions`: String (concise, actionable advice).
-    4.  `experienceAnalysis`: Array of objects:
-        - `title`: Role title.
-        - `relevanceScore`: 0–10.
-        - `depthScore`: 0–10.
-        - `suggestions`: Array of 1–2 short, actionable suggestions (≤15 words each).
-    5.  `projectAnalysis`: Array of objects:
-        - `title`: Project name.
-        - `relevanceScore`: 0–10.
-        - `complexityScore`: 0–8.
-        - `suggestions`: Array of 1–2 short, actionable suggestions (≤15 words each).
+    Return exactly one valid JSON object with the following structure (no extra text or markdown):
 
-    **Important:**  
-    - Only list concrete, verifiable skills.  
-    - Do not include any text or markdown outside of the JSON.
+    {{
+      "matchScore": <integer 0–100>,
+      "keywordAnalysis": {{
+        "coveragePercentage": <integer 0–100>,
+        "neededKeywords": [
+          {{
+            "keyword": "<skill>",
+            "found": <true/false>
+          }}
+        ]
+      }},
+      "overallSuggestions": "<short, actionable advice>",
+      "experienceAnalysis": [
+        {{
+          "title": "<role or inferred experience>",
+          "relevanceScore": <integer 0–10>,
+          "depthScore": <integer 0–10>,
+          "suggestions": [
+            "<short actionable point>",
+            "<short actionable point>"
+          ]
+        }}
+      ],
+      "projectAnalysis": [
+        {{
+          "title": "<project or inferred project>",
+          "relevanceScore": <integer 0–10>,
+          "complexityScore": <integer 0–8>,
+          "suggestions": [
+            "<short actionable point>",
+            "<short actionable point>"
+          ]
+        }}
+      ]
+    }}
+
+    **Important Rules:**
+    - Always include at least one object in both `experienceAnalysis` and `projectAnalysis`, even if inferred from context.
+    - Use plain text only — no markdown, no code fences.
+    - Be concise but specific.
+    - Do not repeat or guess skills unrelated to the resume.
+    - If unsure, make reasoned inferences from context instead of leaving arrays empty.
     """
+
     response = model.generate_content(prompt)
     cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
     return cleaned_response
