@@ -148,7 +148,7 @@ const ResumeAnalysis = () => {
             { icon: <User className="h-5 w-5" />, label: "Personal Details" },
             { icon: <FileText className="h-5 w-5" />, label: "Job Details" },
             { icon: <ListChecks className="h-5 w-5" />, label: "MCQ" },
-            { icon: <Mic className="h-5 w-5" />, label: "Interview" },
+            // { icon: <Mic className="h-5 w-5" />, label: "Interview" },
             { icon: <Award className="h-5 w-5" />, label: "Final" },
           ]}
         />
@@ -388,10 +388,10 @@ const ResumeAnalysis = () => {
           <div className="mt-8 flex items-center justify-end gap-3">
             {/* === CHANGES START HERE === */}
             {/* The `onClick` and `open` props for the Mock Interview button and dialog have been updated */}
-            <Button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
+            {/* <Button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
               onClick={() => setOpenInterviewDialog(true)}>
               Mock Interview
-            </Button>
+            </Button> */}
             <AlertDialog open={openInterviewDialog} onOpenChange={setOpenInterviewDialog}>
             {/* === CHANGES END HERE === */}
               <AlertDialogContent>

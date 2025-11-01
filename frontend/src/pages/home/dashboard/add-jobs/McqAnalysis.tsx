@@ -279,7 +279,7 @@ const McqAnalysis = () => {
             { icon: <User className="h-5 w-5" />, label: "Personal Details" },
             { icon: <FileText className="h-5 w-5" />, label: "Job Details" },
             { icon: <ListChecks className="h-5 w-5" />, label: "MCQ" },
-            { icon: <Mic className="h-5 w-5" />, label: "Interview" },
+            // { icon: <Mic className="h-5 w-5" />, label: "Interview" },
             { icon: <Award className="h-5 w-5" />, label: "Final" },
           ]}
         />
@@ -479,11 +479,17 @@ const McqAnalysis = () => {
 
           <div className="mt-8 flex items-center justify-end gap-3">
             
-            <Button
+            {/* <Button
               className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
               onClick={() => setOpenMockInterviewDialog(true)}
             >
               Mock Interview
+            </Button> */}
+            <Button
+              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
+              onClick={() => navigate("/add-jobs/final-report")}
+            >
+              Final Analysis
             </Button>
             <AlertDialog open={openMockInterviewDialog} onOpenChange={setOpenMockInterviewDialog}>
               <AlertDialogContent>

@@ -22,11 +22,11 @@ const features = [
     title: "Mock MCQ Test",
     text: "Practice company-specific tests and measure readiness with confidence.",
   },
-  {
-    icon: User,
-    title: "AI Interviews",
-    text: "Simulate interviews, record responses, and get actionable suggestions.",
-  },
+  // {
+  //   icon: User,
+  //   title: "AI Interviews",
+  //   text: "Simulate interviews, record responses, and get actionable suggestions.",
+  // },
   {
     icon: ChartColumnIncreasing,
     title: "Custom Metrics",
@@ -47,7 +47,7 @@ const Features = () => {
           <span className="text-white">Features</span>
         </h2>
 
-        <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {features.map(({ icon: Icon, title, text }) => {
             if (title === "Custom Metrics") {
               return (

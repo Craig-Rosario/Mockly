@@ -343,7 +343,7 @@ const Mcq = () => {
             { icon: <User className="h-5 w-5" />, label: "Personal Details" },
             { icon: <FileText className="h-5 w-5" />, label: "Job Details" },
             { icon: <ListChecks className="h-5 w-5" />, label: "MCQ" },
-            { icon: <Mic className="h-5 w-5" />, label: "Interview" },
+            // { icon: <Mic className="h-5 w-5" />, label: "Interview" },
             { icon: <Award className="h-5 w-5" />, label: "Final" },
           ]}
         />

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Label } from "@/components/ui/label"
 import AppStepper from "@/components/custom/AppStepper"
-import { Award, Target, FileText, ListChecks, Mic, AlertTriangle, CheckCircle2, Download, User } from "lucide-react"
+import { Award, Target, FileText, ListChecks, AlertTriangle, User, ListTodo } from "lucide-react"
 
 type Improvement = {
   title: string
@@ -13,11 +13,11 @@ type Improvement = {
 }
 
 type MetricsState = {
-  totalScore?: number 
-  jobMatch?: number 
-  resumeScore?: number 
-  mcqScore?: number 
-  interviewScore?: number 
+  totalScore?: number
+  jobMatch?: number
+  resumeScore?: number
+  mcqScore?: number
+  interviewScore?: number
   improvements?: Improvement[]
 }
 
@@ -73,27 +73,17 @@ const FinalReport = () => {
   const total = clamp(Math.round(state.totalScore ?? computedTotal))
   const improvements = state.improvements?.length ? state.improvements : defaultImprovements
   const scoreTone = total >= 85 ? "text-emerald-400" : total >= 70 ? "text-blue-400" : "text-amber-400"
+  const fitText = total >= 85 ? "Excellent Fit " : total >= 70 ? "Strong Potential " : "Needs Improvement "
 
   return (
     <div className="min-h-screen w-full bg-zinc-950 text-white p-8">
 
+      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-bold">Final Evaluation Metrics</h1>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            className="bg-gray-900 border border-gray-700 text-white"
-            onClick={() => navigate("/dashboard")}
-          >
-            Go to Dashboard
-          </Button>
-          <Button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90">
-            <Download className="h-4 w-4 mr-2" />
-            Download Report
-          </Button>
-        </div>
       </div>
 
+      {/* Stepper */}
       <div className="mb-6">
         <AppStepper
           currentStep={4.95}
@@ -101,12 +91,12 @@ const FinalReport = () => {
             { icon: <User className="h-5 w-5" />, label: "Personal Details" },
             { icon: <FileText className="h-5 w-5" />, label: "Job Details" },
             { icon: <ListChecks className="h-5 w-5" />, label: "MCQ" },
-            { icon: <Mic className="h-5 w-5" />, label: "Interview" },
             { icon: <Award className="h-5 w-5" />, label: "Final" },
           ]}
         />
       </div>
 
+      {/* Summary + Job Match */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Card className="bg-zinc-900">
           <CardHeader>
@@ -123,8 +113,10 @@ const FinalReport = () => {
                 <span className="text-2xl text-zinc-400">/100</span>
               </div>
               <p className="mt-2 text-sm text-zinc-400 text-center">
-                Weighted score based on Job Match (40%), Resume (20%), MCQ (20%), and Interview (20%).
+                Weighted score based on Job Match (50%), Resume (25%), MCQ (25%).
               </p>
+              {/* 5️⃣ Career Fit Meter */}
+              <p className={`text-lg mt-4 font-medium ${scoreTone}`}>{fitText}</p>
             </div>
           </CardContent>
           <CardFooter className="justify-end gap-2">
@@ -156,12 +148,16 @@ const FinalReport = () => {
               <span className="font-semibold text-blue-400">{jobMatch}%</span>
             </div>
             <Progress value={jobMatch} className="mt-3 h-2" />
-            <p className="mt-3 text-sm text-zinc-400">Based on alignment between your profile and job requirements.</p>
+            <p className="mt-3 text-sm text-zinc-400">
+              Based on alignment between your profile and job requirements.
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+
+      {/* Resume + MCQ */}
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
         <Card className="bg-zinc-900">
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -200,41 +196,10 @@ const FinalReport = () => {
               </span>
             </div>
           </CardContent>
-          <CardFooter className="justify-end">
-            <Button className="bg-gray-800 text-white hover:bg-gray-700" onClick={() => navigate("/add-jobs/mcq")}>
-              Retake MCQ
-            </Button>
-          </CardFooter>
-        </Card>
-
-        <Card className="bg-zinc-900">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Mic className="h-5 w-5 mr-2 text-purple-400" />
-              Interview Score
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-300">Score</span>
-              <span className="font-semibold text-purple-400">{interview}%</span>
-            </div>
-            <Progress value={interview} className="mt-3 h-2" />
-            <ul className="mt-3 text-sm text-zinc-400 list-disc pl-5 space-y-1">
-              <li>Keep concise, structured answers with examples.</li>
-            </ul>
-          </CardContent>
-          <CardFooter className="justify-end">
-            <Button
-              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
-              onClick={() => navigate("/add-jobs/mock-interview")}
-            >
-              Practice Interview
-            </Button>
-          </CardFooter>
         </Card>
       </div>
 
+      {/* Things to Improve */}
       <div className="mt-6">
         <Card className="bg-zinc-900">
           <CardHeader>
@@ -257,7 +222,9 @@ const FinalReport = () => {
                       </div>
                       <span className={`text-xs ${styles.text} capitalize`}>{sev}</span>
                     </div>
-                    {imp.description ? <p className="mt-2 text-sm text-zinc-400">{imp.description}</p> : null}
+                    {imp.description ? (
+                      <p className="mt-2 text-sm text-zinc-400">{imp.description}</p>
+                    ) : null}
                   </div>
                 )
               })}
@@ -267,10 +234,9 @@ const FinalReport = () => {
             <Button
               variant="outline"
               className="bg-gray-900 border border-gray-700 text-white"
-              onClick={() => navigate("/add-jobs/resume-analysis")}
+              onClick={() => navigate("/dashboard")}
             >
-              <CheckCircle2 className="h-4 w-4 mr-2" />
-              Apply Suggestions
+              Go to Dashboard
             </Button>
           </CardFooter>
         </Card>
