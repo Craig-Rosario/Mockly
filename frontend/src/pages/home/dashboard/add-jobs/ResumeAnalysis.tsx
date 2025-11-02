@@ -100,8 +100,8 @@ const ResumeAnalysis = () => {
 
     analyzeResume()
   }, [getToken])
-  // Show loading state while analysis is processing
-  if (loading || analysisStatus === 'processing') {
+  // Show loading state while analysis is processing or if we have no data
+  if (loading || analysisStatus === 'processing' || !analysisData) {
     return (
       <div className="min-h-screen w-full bg-zinc-950 text-white p-8">
         <h1 className="text-3xl font-bold mb-6">Resume Analysis</h1>

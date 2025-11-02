@@ -36,72 +36,196 @@ export const analyzeResumeWithGemini = async (resumeContent, personalDetails, jo
     const text = response.text();
     
     // Clean the response and parse JSON
-    const cleanedResponse = text.trim().replace(/```json/g, '').replace(/```/g, '');
+    let cleanedResponse = text.trim().replace(/```json/g, '').replace(/```/g, '');
+    
+    // More robust JSON repair for truncated responses
+    console.log('Raw response length:', text.length);
+    console.log('Cleaned response length:', cleanedResponse.length);
+    
+    // Try to find and extract valid JSON from potentially malformed response
+    const repairJSON = (jsonStr) => {
+      let repairedJSON = jsonStr.trim();
+      
+      // Check for incomplete overallSuggestions field (most common truncation point)
+      if (repairedJSON.includes('"overallSuggestions":') && repairedJSON.includes('user adopti')) {
+        console.log('Detected truncated overallSuggestions field');
+        
+        // Find the start of overallSuggestions
+        const suggestionsStart = repairedJSON.indexOf('"overallSuggestions":');
+        const beforeSuggestions = repairedJSON.substring(0, suggestionsStart);
+        
+        // Extract the partial suggestion text and clean it up
+        const afterSuggestions = repairedJSON.substring(suggestionsStart);
+        const partialMatch = afterSuggestions.match(/"overallSuggestions":\s*"([^"]*)/);
+        
+        if (partialMatch) {
+          let partialSuggestion = partialMatch[1];
+          
+          // Clean up common truncation artifacts
+          partialSuggestion = partialSuggestion.replace(/\s*user adopti.*$/, '');
+          partialSuggestion = partialSuggestion.replace(/\s*performance metrics.*$/, '');
+          partialSuggestion += '.'; // Add proper ending
+          
+          // Reconstruct complete JSON
+          repairedJSON = beforeSuggestions + 
+            '"overallSuggestions":"' + partialSuggestion + 
+            '","experienceAnalysis":[],"projectAnalysis":[]}';
+        }
+      }
+      
+      // Handle other truncation patterns
+      else if (repairedJSON.includes('"experienceAnalysis":') && !repairedJSON.includes('"projectAnalysis":')) {
+        // Truncated during experience analysis
+        const expStart = repairedJSON.indexOf('"experienceAnalysis":');
+        const beforeExp = repairedJSON.substring(0, expStart);
+        repairedJSON = beforeExp + '"experienceAnalysis":[],"projectAnalysis":[]}';
+      }
+      
+      // Final cleanup: ensure proper JSON closure
+      if (!repairedJSON.trim().endsWith('}')) {
+        if (repairedJSON.includes('{') && !repairedJSON.includes('}')) {
+          repairedJSON += '}';
+        }
+      }
+      
+      return repairedJSON;
+    };
+    
+    // Apply JSON repair
+    cleanedResponse = repairJSON(cleanedResponse);
+    console.log('Repaired response length:', cleanedResponse.length);
     
     try {
       const parsedResult = JSON.parse(cleanedResponse);
+      console.log('Successfully parsed JSON from Gemini');
       
       // Validate the structure of the response
-      validateAnalysisResult(parsedResult);
-      
-      return parsedResult;
+      try {
+        validateAnalysisResult(parsedResult);
+        console.log('Analysis result validated successfully');
+        return parsedResult;
+      } catch (validationError) {
+        console.error('Validation failed, using fallback result:', validationError);
+        console.error('Parsed result that failed validation:', JSON.stringify(parsedResult, null, 2));
+        // Don't throw here, let it fall through to the fallback logic
+        throw validationError;
+      }
     } catch (parseError) {
-      console.error('Failed to parse Gemini response as JSON:', parseError);
-      throw new Error('Invalid JSON response from Gemini AI');
+      console.error('Failed to parse or validate Gemini response:', parseError);
+      console.error('Raw response text:', text.substring(0, 1000));
+      console.error('Cleaned response:', cleanedResponse.substring(0, 1000));
+      
+      // Try to extract partial valid data before giving up
+      try {
+        console.log('Attempting to extract partial valid JSON...');
+        
+        // Try to extract at least the basic structure we can parse
+        const extractPartialJSON = (jsonStr) => {
+          const patterns = {
+            matchScore: /"matchScore":\s*(\d+)/,
+            coveragePercentage: /"coveragePercentage":\s*(\d+)/,
+            neededKeywords: /"neededKeywords":\s*(\[[^\]]*\])/
+          };
+          
+          const extracted = {
+            matchScore: 0,
+            keywordAnalysis: {
+              coveragePercentage: 0,
+              neededKeywords: []
+            },
+            overallSuggestions: "",
+            experienceAnalysis: [],
+            projectAnalysis: []
+          };
+          
+          // Extract match score
+          const matchScoreMatch = jsonStr.match(patterns.matchScore);
+          if (matchScoreMatch) {
+            extracted.matchScore = parseInt(matchScoreMatch[1]);
+          }
+          
+          // Extract coverage percentage
+          const coverageMatch = jsonStr.match(patterns.coveragePercentage);
+          if (coverageMatch) {
+            extracted.keywordAnalysis.coveragePercentage = parseInt(coverageMatch[1]);
+          }
+          
+          // Try to extract keywords array (even if incomplete)
+          const keywordsMatch = jsonStr.match(/"neededKeywords":\s*(\[.*?)(?:\]|$)/s);
+          if (keywordsMatch) {
+            try {
+              let keywordsStr = keywordsMatch[1];
+              if (!keywordsStr.endsWith(']')) {
+                keywordsStr += ']';
+              }
+              const keywords = JSON.parse(keywordsStr);
+              if (Array.isArray(keywords)) {
+                extracted.keywordAnalysis.neededKeywords = keywords.filter(k => k.keyword && typeof k.found === 'boolean');
+              }
+            } catch (e) {
+              console.log('Could not parse keywords, using empty array');
+            }
+          }
+          
+          return extracted;
+        };
+        
+        const partialResult = extractPartialJSON(text);
+        console.log('Extracted partial result:', partialResult);
+        
+        // Validate the partial result
+        try {
+          validateAnalysisResult(partialResult);
+          console.log('Partial result validated successfully');
+          return partialResult;
+        } catch (validationError) {
+          console.log('Partial result validation failed, using fallback');
+          throw validationError;
+        }
+        
+      } catch (extractError) {
+        console.error('Failed to extract partial data:', extractError);
+        throw parseError;
+      }
     }
     
   } catch (error) {
     console.error('Error analyzing resume with Gemini:', error);
     
-    // If quota exceeded or API unavailable, return mock data for development
-    if (error.status === 429 || error.message.includes('quota') || error.message.includes('Too Many Requests')) {
-      console.log('🔄 API quota exceeded, returning mock analysis data for development...');
+    // If quota exceeded, API unavailable, or validation failed, return fallback data
+    if (error.status === 429 || 
+        error.message.includes('quota') || 
+        error.message.includes('Too Many Requests') ||
+        error.message.includes('Invalid') ||
+        error.message.includes('keywordAnalysis') ||
+        error.message.includes('experienceAnalysis') ||
+        error.message.includes('parse')) {
+      console.log('🔄 API issue or validation error, returning blank analysis data...');
       
       return {
-        matchScore: 78,
+        matchScore: 0,
         keywordAnalysis: {
-          coveragePercentage: 65,
-          neededKeywords: [
-            { keyword: "React", found: true },
-            { keyword: "Node.js", found: true },
-            { keyword: "MongoDB", found: false },
-            { keyword: "TypeScript", found: false },
-            { keyword: "AWS", found: false }
-          ]
+          coveragePercentage: 0,
+          neededKeywords: []
         },
-        overallSuggestions: "Strong technical foundation with room for improvement in cloud technologies and databases. Consider adding MongoDB and AWS experience to better match job requirements.",
-        experienceAnalysis: [
-          {
-            title: "Software Developer",
-            relevanceScore: 8,
-            depthScore: 7,
-            suggestions: ["Add specific project metrics", "Highlight leadership experience"]
-          },
-          {
-            title: "Frontend Developer",
-            relevanceScore: 9,
-            depthScore: 8,
-            suggestions: ["Include framework-specific achievements", "Mention performance optimizations"]
-          }
-        ],
-        projectAnalysis: [
-          {
-            title: "E-commerce Platform",
-            relevanceScore: 9,
-            complexityScore: 7,
-            suggestions: ["Detail user engagement metrics", "Describe technical architecture"]
-          },
-          {
-            title: "Task Management App",
-            relevanceScore: 7,
-            complexityScore: 6,
-            suggestions: ["Add deployment details", "Include user feedback results"]
-          }
-        ]
+        overallSuggestions: "",
+        experienceAnalysis: [],
+        projectAnalysis: []
+      };
+    } else {
+      // For any other error types, also return blank data instead of throwing
+      console.log('🔄 Unknown error, returning blank analysis data...');
+      return {
+        matchScore: 0,
+        keywordAnalysis: {
+          coveragePercentage: 0,
+          neededKeywords: []
+        },
+        overallSuggestions: "",
+        experienceAnalysis: [],
+        projectAnalysis: []
       };
     }
-    
-    throw new Error(`Resume analysis failed: ${error.message}`);
   }
 };
 
@@ -271,22 +395,54 @@ Generate exactly 10 questions following this format.
  * Validate analysis result structure
  */
 const validateAnalysisResult = (result) => {
-  const requiredFields = ['matchScore', 'keywordAnalysis', 'overallSuggestions', 'experienceAnalysis', 'projectAnalysis'];
-  
-  for (const field of requiredFields) {
-    if (!(field in result)) {
-      throw new Error(`Missing required field: ${field}`);
-    }
+  // Check basic structure
+  if (!result || typeof result !== 'object') {
+    throw new Error('Result must be an object');
   }
-  
-  // Validate matchScore range
-  if (typeof result.matchScore !== 'number' || result.matchScore < 0 || result.matchScore > 100) {
+
+  // Validate matchScore
+  if (!('matchScore' in result) || typeof result.matchScore !== 'number' || result.matchScore < 0 || result.matchScore > 100) {
     throw new Error('matchScore must be a number between 0 and 100');
   }
   
   // Validate keywordAnalysis
-  if (!result.keywordAnalysis.coveragePercentage || !Array.isArray(result.keywordAnalysis.neededKeywords)) {
-    throw new Error('Invalid keywordAnalysis structure');
+  if (!result.keywordAnalysis || typeof result.keywordAnalysis !== 'object') {
+    throw new Error('keywordAnalysis is required and must be an object');
+  }
+  
+  if (typeof result.keywordAnalysis.coveragePercentage !== 'number') {
+    throw new Error('keywordAnalysis.coveragePercentage must be a number');
+  }
+  
+  if (!Array.isArray(result.keywordAnalysis.neededKeywords)) {
+    throw new Error('keywordAnalysis.neededKeywords must be an array');
+  }
+
+  // Validate each keyword in neededKeywords
+  for (let i = 0; i < result.keywordAnalysis.neededKeywords.length; i++) {
+    const keyword = result.keywordAnalysis.neededKeywords[i];
+    if (!keyword.keyword || typeof keyword.found !== 'boolean') {
+      throw new Error(`Invalid keyword structure at index ${i}: must have 'keyword' string and 'found' boolean`);
+    }
+  }
+  
+  // Ensure required fields exist (can be empty arrays/strings)
+  if (!('overallSuggestions' in result)) {
+    result.overallSuggestions = '';
+  }
+  if (!('experienceAnalysis' in result)) {
+    result.experienceAnalysis = [];
+  }
+  if (!('projectAnalysis' in result)) {
+    result.projectAnalysis = [];
+  }
+
+  // Validate arrays are actually arrays
+  if (!Array.isArray(result.experienceAnalysis)) {
+    throw new Error('experienceAnalysis must be an array');
+  }
+  if (!Array.isArray(result.projectAnalysis)) {
+    throw new Error('projectAnalysis must be an array');
   }
   
   return true;

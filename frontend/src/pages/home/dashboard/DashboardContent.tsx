@@ -53,6 +53,15 @@ interface JobApplication {
     interviewResults?: {
         overallScore: number;
     };
+    finalReport?: {
+        metrics: {
+            mcqScore: number;
+            resumeScore: number;
+            jobMatch: number;
+            totalScore: number;
+        };
+        reportStatus: string;
+    };
 }
 
 const DashboardContent: React.FC = () => {
@@ -93,6 +102,13 @@ const DashboardContent: React.FC = () => {
     const totalMcqTests = jobApplications.filter(app => app.mcqResults).length;
 
     const getMatchPercentage = (application: JobApplication) => {
+        // First priority: Use final report total score if available
+        if (application.finalReport?.metrics?.totalScore !== undefined) {
+            const totalScore = application.finalReport.metrics.totalScore;
+            return Math.max(0, Math.min(100, Math.round(totalScore)));
+        }
+
+        // Fallback: Calculate from individual results
         let score = 0;
         let total = 0;
 
@@ -178,7 +194,14 @@ const DashboardContent: React.FC = () => {
         });
         
         if (weekApps.length === 0) return 0;
-        return Math.round(weekApps.reduce((acc, app) => acc + getMatchPercentage(app), 0) / weekApps.length);
+        
+        const total = weekApps.reduce((acc, app) => {
+            const percentage = getMatchPercentage(app);
+            return acc + (isNaN(percentage) ? 0 : percentage);
+        }, 0);
+        
+        const average = Math.round(total / weekApps.length);
+        return isNaN(average) ? 0 : average;
     };
 
     const pendingFollowups = jobApplications.filter(app => 
@@ -265,9 +288,15 @@ const DashboardContent: React.FC = () => {
                             <Target className="w-6 h-6 text-white" />
                         </div>
                         <div className="text-2xl font-bold text-white">
-                            {jobApplications.length > 0 
-                                ? Math.round(jobApplications.reduce((acc, app) => acc + getMatchPercentage(app), 0) / jobApplications.length)
-                                : 0}%
+                            {(() => {
+                                if (jobApplications.length === 0) return '0';
+                                const total = jobApplications.reduce((acc, app) => {
+                                    const percentage = getMatchPercentage(app);
+                                    return acc + (isNaN(percentage) ? 0 : percentage);
+                                }, 0);
+                                const average = Math.round(total / jobApplications.length);
+                                return isNaN(average) ? '0' : average.toString();
+                            })()}%
                         </div>
                         <p className="text-gray-400">Avg Match</p>
                     </CardContent>

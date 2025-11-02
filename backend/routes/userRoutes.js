@@ -143,7 +143,29 @@ router.get("/job-applications", requireAuth(), async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        res.json(user.jobApplications);
+        // Fetch final reports for each job application
+        const applicationsWithReports = await Promise.all(
+            user.jobApplications.map(async (application) => {
+                try {
+                    const finalReport = await FinalReport.findOne({ 
+                        jobApplicationId: application._id 
+                    }).select('metrics reportStatus');
+                    
+                    return {
+                        ...application.toObject(),
+                        finalReport: finalReport ? {
+                            metrics: finalReport.metrics,
+                            reportStatus: finalReport.reportStatus
+                        } : null
+                    };
+                } catch (err) {
+                    console.log(`No final report found for application ${application._id}`);
+                    return application.toObject();
+                }
+            })
+        );
+
+        res.json(applicationsWithReports);
     } catch (err) {
         console.error("Fetch job applications error:", err);
         res.status(500).json({ error: "Failed to fetch job applications" });
@@ -167,7 +189,28 @@ router.get("/job-application/:applicationId", requireAuth(), async (req, res) =>
             return res.status(404).json({ message: "Job application not found" });
         }
 
-        res.json(application);
+        // Fetch final report for this application
+        try {
+            const finalReport = await FinalReport.findOne({ 
+                jobApplicationId: applicationId 
+            });
+            
+            const applicationWithReport = {
+                ...application.toObject(),
+                finalReport: finalReport ? {
+                    metrics: finalReport.metrics,
+                    reportStatus: finalReport.reportStatus,
+                    mcqData: finalReport.mcqData,
+                    resumeData: finalReport.resumeData,
+                    improvements: finalReport.improvements
+                } : null
+            };
+            
+            res.json(applicationWithReport);
+        } catch (reportErr) {
+            console.log(`No final report found for application ${applicationId}`);
+            res.json(application);
+        }
     } catch (err) {
         console.error("Fetch job application error:", err);
         res.status(500).json({ error: "Failed to fetch job application" });
