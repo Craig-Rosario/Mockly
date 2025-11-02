@@ -70,7 +70,7 @@ const defaultImprovements: Improvement[] = [
   },
   {
     title: "Cover missing keywords",
-    description: "Address gaps such as Docker and PostgreSQL where applicable.",
+    description: "Address such as Docker and PostgreSQL where applicable.",
     severity: "medium",
   },
   {
@@ -246,20 +246,7 @@ const FinalReport = () => {
               <p className={`text-lg mt-4 font-medium ${scoreTone}`}>{fitText}</p>
             </div>
           </CardContent>
-          <CardFooter className="justify-end gap-2">
-            <Button
-              className="bg-gray-800 text-white hover:bg-gray-700"
-              onClick={() => navigate("/add-jobs/resume-analysis")}
-            >
-              Review Resume
-            </Button>
-            <Button
-              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
-              onClick={() => navigate("/add-jobs/mcq-analysis")}
-            >
-              View MCQ Analytics
-            </Button>
-          </CardFooter>
+    
         </Card>
 
         <Card className="bg-zinc-900">

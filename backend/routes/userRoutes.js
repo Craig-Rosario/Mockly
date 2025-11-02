@@ -409,7 +409,7 @@ router.post("/analyze-resume/:applicationId", requireAuth(), async (req, res) =>
             return res.status(400).json({ message: "No resume found for this application" });
         }
         
-        // Check for existing analysis
+        // Check for existing analysis with additional safety check
         let resumeAnalysis = await ResumeAnalysis.findOne({ 
             userId: user._id, 
             jobApplicationId: applicationId 
@@ -417,6 +417,7 @@ router.post("/analyze-resume/:applicationId", requireAuth(), async (req, res) =>
         
         // If analysis exists and is completed, return it
         if (resumeAnalysis && resumeAnalysis.analysisStatus === 'completed') {
+            console.log("Resume analysis already completed, returning existing:", resumeAnalysis._id);
             return res.json({
                 message: "Resume analysis already exists",
                 analysis: resumeAnalysis.analysisResult,
@@ -426,8 +427,25 @@ router.post("/analyze-resume/:applicationId", requireAuth(), async (req, res) =>
             });
         }
         
+        // If analysis exists but is in processing/error state, check if it's recent
+        if (resumeAnalysis && (resumeAnalysis.analysisStatus === 'processing' || resumeAnalysis.analysisStatus === 'error')) {
+            const timeSinceStarted = new Date() - resumeAnalysis.processingStartedAt;
+            const fiveMinutesInMs = 5 * 60 * 1000;
+            
+            if (timeSinceStarted < fiveMinutesInMs && resumeAnalysis.analysisStatus === 'processing') {
+                console.log("Resume analysis currently in progress, returning status");
+                return res.json({
+                    message: "Resume analysis is currently in progress",
+                    analysisId: resumeAnalysis._id,
+                    status: resumeAnalysis.analysisStatus,
+                    startedAt: resumeAnalysis.processingStartedAt
+                });
+            }
+        }
+        
         // Create new analysis record or update existing one
         if (!resumeAnalysis) {
+            console.log("Creating new resume analysis for application:", applicationId);
             resumeAnalysis = new ResumeAnalysis({
                 userId: user._id,
                 jobApplicationId: applicationId,
@@ -435,6 +453,7 @@ router.post("/analyze-resume/:applicationId", requireAuth(), async (req, res) =>
                 processingStartedAt: new Date()
             });
         } else {
+            console.log("Updating existing resume analysis:", resumeAnalysis._id);
             resumeAnalysis.analysisStatus = 'processing';
             resumeAnalysis.processingStartedAt = new Date();
             resumeAnalysis.errorMessage = undefined;
@@ -749,6 +768,16 @@ router.post("/job-application/:applicationId/generate-mcqs", requireAuth(), asyn
             const correctIndex = letterToIndex[mcq.correct_answer];
             const correctAnswerText = mcq.options[correctIndex];
             
+            console.log(`MCQ ${index} Generation Debug:`, {
+                question: mcq.question.substring(0, 50) + "...",
+                correct_answer_letter: mcq.correct_answer,
+                correctIndex: correctIndex,
+                options: mcq.options,
+                correctAnswerText: correctAnswerText,
+                correctAnswerTextType: typeof correctAnswerText,
+                correctAnswerTextLength: correctAnswerText?.length
+            });
+            
             return {
                 question: mcq.question,
                 options: mcq.options,
@@ -815,209 +844,176 @@ router.get("/job-application/:applicationId/mcqs", requireAuth(), async (req, re
 
 // Submit MCQ answers and calculate results
 router.post("/job-application/:applicationId/submit-mcqs", requireAuth(), async (req, res) => {
-    try {
-        const clerkUserId = req.auth.userId;
-        const { applicationId } = req.params;
-        const { answers, timeTaken } = req.body; // answers: [{ questionIndex, selectedAnswer, timeSpent }]
-        
-        console.log("=== SUBMIT MCQ START ===");
-        console.log("User ID:", clerkUserId);
-        console.log("Application ID:", applicationId);
-        console.log("Answers received:", answers?.length || 0);
-        console.log("Request body keys:", Object.keys(req.body));
-        
-        // Validate request data
-        if (!answers || !Array.isArray(answers)) {
-            console.error("Invalid answers format:", answers);
-            return res.status(400).json({ 
-                message: "Invalid answers format. Expected array.",
-                received: typeof answers
-            });
-        }
+  try {
+    const clerkUserId = req.auth.userId;
+    const { applicationId } = req.params;
+    const { answers, timeTaken } = req.body;
 
-        if (answers.length === 0) {
-            console.error("No answers provided");
-            return res.status(400).json({ message: "No answers provided" });
-        }
-        
-        const user = await User.findOne({ clerkId: clerkUserId });
-        if (!user) {
-            console.error("User not found:", clerkUserId);
-            return res.status(404).json({ message: "User not found" });
-        }
+    console.log("=== SUBMIT MCQ START ===");
+    console.log("User ID:", clerkUserId);
+    console.log("Application ID:", applicationId);
+    console.log("Answers received:", answers?.length || 0);
 
-        const mcq = await MCQ.findOne({
-            userId: user._id,
-            jobApplicationId: applicationId
-        });
-
-        if (!mcq) {
-            console.error("MCQ not found for user:", user._id, "application:", applicationId);
-            return res.status(404).json({ message: "MCQs not found for this application" });
-        }
-
-        if (mcq.mcqStatus === 'completed') {
-            console.error("MCQ already completed");
-            return res.status(400).json({ message: "MCQs already completed for this application" });
-        }
-
-        console.log("MCQ found:", {
-            id: mcq._id,
-            status: mcq.mcqStatus,
-            questionsCount: mcq.questions?.length || 0
-        });
-
-        // Calculate results with simplified but robust logic
-        let correctAnswers = 0;
-        const answersSubmitted = [];
-        const topicStats = {};
-
-        console.log("=== MCQ PROCESSING START ===");
-        console.log("Processing", answers.length, "answers for", mcq.questions.length, "questions");
-
-        answers.forEach((answer, index) => {
-            const question = mcq.questions[answer.questionIndex];
-            
-            if (!question) {
-                console.error(`Question not found at index ${answer.questionIndex}`);
-                return;
-            }
-            
-            // Simple but comprehensive answer checking
-            let isCorrect = false;
-            const selectedAnswer = answer.selectedAnswer;
-            const correctAnswer = question.correctAnswer;
-            
-            console.log(`Q${answer.questionIndex}: Selected="${selectedAnswer}" vs Correct="${correctAnswer}"`);
-            
-            // Try multiple comparison methods
-            if (selectedAnswer === correctAnswer) {
-                isCorrect = true;
-            } else if (typeof selectedAnswer === 'string' && ['A', 'B', 'C', 'D'].includes(selectedAnswer)) {
-                // Convert letter to option text
-                const letterToIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 };
-                const selectedText = question.options[letterToIndex[selectedAnswer]];
-                isCorrect = selectedText === correctAnswer;
-            } else if (typeof selectedAnswer === 'number' && selectedAnswer >= 0 && selectedAnswer <= 3) {
-                // Convert index to option text
-                const selectedText = question.options[selectedAnswer];
-                isCorrect = selectedText === correctAnswer;
-            } else if (typeof selectedAnswer === 'string' && ['0', '1', '2', '3'].includes(selectedAnswer)) {
-                // Convert string index to option text
-                const selectedText = question.options[parseInt(selectedAnswer)];
-                isCorrect = selectedText === correctAnswer;
-            }
-            
-            if (isCorrect) {
-                correctAnswers++;
-                console.log(`✅ Q${answer.questionIndex}: CORRECT`);
-            } else {
-                console.log(`❌ Q${answer.questionIndex}: INCORRECT`);
-            }
-
-            // Track topic-wise performance
-            const topic = question.topic || 'General';
-            if (!topicStats[topic]) {
-                topicStats[topic] = { correct: 0, total: 0 };
-            }
-            topicStats[topic].total++;
-            if (isCorrect) topicStats[topic].correct++;
-
-            answersSubmitted.push({
-                questionIndex: answer.questionIndex,
-                selectedAnswer: answer.selectedAnswer,
-                isCorrect,
-                timeSpent: answer.timeSpent || 0
-            });
-        });
-
-        console.log("=== FINAL RESULTS ===");
-        console.log("Total Correct Answers:", correctAnswers);
-        console.log("Total Questions:", mcq.questions.length);
-
-        // Calculate topic-wise performance
-        const topicWisePerformance = Object.keys(topicStats).map(topic => ({
-            topic,
-            correct: topicStats[topic].correct,
-            total: topicStats[topic].total,
-            percentage: Math.round((topicStats[topic].correct / topicStats[topic].total) * 100)
-        }));
-
-        const totalQuestions = mcq.questions.length;
-        const score = Math.round((correctAnswers / totalQuestions) * 100);
-
-        console.log("Calculated MCQ Results:", {
-            totalQuestions,
-            correctAnswers,
-            score,
-            timeTaken: timeTaken || 0,
-            topicWisePerformanceCount: topicWisePerformance.length
-        });
-
-        // Update MCQ with results
-        mcq.results = {
-            totalQuestions,
-            correctAnswers,
-            incorrectAnswers: totalQuestions - correctAnswers,
-            score,
-            timeTaken: timeTaken || 0,
-            answersSubmitted,
-            topicWisePerformance,
-            completedAt: new Date()
-        };
-        mcq.mcqStatus = 'completed';
-        mcq.completedAt = new Date();
-
-        console.log("MCQ before save:", {
-            id: mcq._id,
-            status: mcq.mcqStatus,
-            hasResults: !!mcq.results,
-            resultsScore: mcq.results?.score
-        });
-
-        const savedMCQ = await mcq.save();
-        
-        console.log("MCQ after save:", {
-            id: savedMCQ._id,
-            status: savedMCQ.mcqStatus,
-            hasResults: !!savedMCQ.results,
-            resultsScore: savedMCQ.results?.score,
-            resultsStructure: savedMCQ.results ? Object.keys(savedMCQ.results) : null
-        });
-
-        // Update job application with MCQ results
-        const application = user.jobApplications.id(applicationId);
-        if (application) {
-            application.mcqResults = {
-                score,
-                totalQuestions,
-                correctAnswers,
-                timeTaken: timeTaken || 0,
-                completedAt: new Date()
-            };
-            await user.save();
-        }
-
-        res.json({
-            message: "MCQ results saved successfully",
-            results: savedMCQ.results,
-            mcqId: savedMCQ._id,
-            applicationId: applicationId,
-            debug: {
-                mcqStatus: savedMCQ.mcqStatus,
-                hasResults: !!savedMCQ.results,
-                score: savedMCQ.results?.score
-            }
-        });
-
-    } catch (error) {
-        console.error("Submit MCQs error:", error);
-        res.status(500).json({
-            message: "Failed to submit MCQ answers",
-            error: error.message
-        });
+    // --- Validation ---
+    if (!answers || !Array.isArray(answers) || answers.length === 0) {
+      return res.status(400).json({
+        message: "Invalid or empty answers array",
+        received: typeof answers,
+      });
     }
+
+    // --- Fetch user & MCQ ---
+    const user = await User.findOne({ clerkId: clerkUserId });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const mcq = await MCQ.findOne({
+      userId: user._id,
+      jobApplicationId: applicationId,
+    });
+
+    if (!mcq) return res.status(404).json({ message: "MCQs not found for this application" });
+    if (mcq.mcqStatus === "completed")
+      return res.status(400).json({ message: "MCQs already completed for this application" });
+
+    console.log("MCQ found:", {
+      id: mcq._id,
+      status: mcq.mcqStatus,
+      questionsCount: mcq.questions?.length || 0,
+    });
+
+    // --- Scoring Setup ---
+    let correctAnswers = 0;
+    const answersSubmitted = [];
+    const topicStats = {};
+
+    console.log("=== MCQ PROCESSING START ===");
+
+    // --- Process Each Answer ---
+    answers.forEach((answer, index) => {
+      const question = mcq.questions[answer.questionIndex];
+      if (!question) {
+        console.warn(`⚠️ Question not found at index ${answer.questionIndex}`);
+        return;
+      }
+
+      const selectedAnswer = (answer.selectedAnswer || "").trim().toUpperCase();
+      const correctAnswer = (question.correctAnswer || "").trim().toUpperCase();
+      let isCorrect = false;
+
+      // ✅ Case 1: Both are letters (A–D)
+      if (
+        ["A", "B", "C", "D"].includes(selectedAnswer) &&
+        ["A", "B", "C", "D"].includes(correctAnswer)
+      ) {
+        isCorrect = selectedAnswer === correctAnswer;
+      }
+
+      // 🔄 Case 2: Backward compatibility for old text-based answers
+      else {
+        let selectedText = selectedAnswer;
+
+        // If user sent a letter, map it to option text
+        if (["A", "B", "C", "D"].includes(selectedAnswer)) {
+          const idx = selectedAnswer.charCodeAt(0) - 65; // 'A'→0, 'B'→1
+          selectedText = question.options[idx];
+        }
+
+        isCorrect =
+          selectedText?.trim().toLowerCase() === correctAnswer?.trim().toLowerCase();
+      }
+
+      if (isCorrect) correctAnswers++;
+
+      // --- Topic Stats ---
+      const topic = question.topic || "General";
+      topicStats[topic] ??= { correct: 0, total: 0 };
+      topicStats[topic].total++;
+      if (isCorrect) topicStats[topic].correct++;
+
+      answersSubmitted.push({
+        questionIndex: answer.questionIndex,
+        selectedAnswer,
+        isCorrect,
+        timeSpent: answer.timeSpent || 0,
+      });
+
+      console.log(
+        `Q${answer.questionIndex + 1}: ${isCorrect ? "✅ Correct" : "❌ Incorrect"} | Selected: ${selectedAnswer} | Correct: ${correctAnswer}`
+      );
+    });
+
+    // --- Compute Final Stats ---
+    const totalQuestions = mcq.questions.length;
+    const incorrectAnswers = totalQuestions - correctAnswers;
+    const score = Math.round((correctAnswers / totalQuestions) * 100);
+
+    const topicWisePerformance = Object.keys(topicStats).map((topic) => ({
+      topic,
+      correct: topicStats[topic].correct,
+      total: topicStats[topic].total,
+      percentage: Math.round(
+        (topicStats[topic].correct / topicStats[topic].total) * 100
+      ),
+    }));
+
+    console.log("=== FINAL RESULTS ===", {
+      totalQuestions,
+      correctAnswers,
+      incorrectAnswers,
+      score,
+      timeTaken: timeTaken || 0,
+    });
+
+    // --- Update MCQ ---
+    mcq.results = {
+      totalQuestions,
+      correctAnswers,
+      incorrectAnswers,
+      score,
+      timeTaken: timeTaken || 0,
+      answersSubmitted,
+      topicWisePerformance,
+      completedAt: new Date(),
+    };
+
+    mcq.mcqStatus = "completed";
+    mcq.completedAt = new Date();
+
+    const savedMCQ = await mcq.save();
+
+    // --- Update Job Application ---
+    const application = user.jobApplications.id(applicationId);
+    if (application) {
+      application.mcqResults = {
+        score,
+        totalQuestions,
+        correctAnswers,
+        timeTaken: timeTaken || 0,
+        completedAt: new Date(),
+      };
+      await user.save();
+    }
+
+    // --- Response ---
+    res.json({
+      message: "MCQ results saved successfully",
+      results: savedMCQ.results,
+      mcqId: savedMCQ._id,
+      applicationId,
+      debug: {
+        mcqStatus: savedMCQ.mcqStatus,
+        score: savedMCQ.results?.score,
+      },
+    });
+  } catch (error) {
+    console.error("Submit MCQs error:", error);
+    res.status(500).json({
+      message: "Failed to submit MCQ answers",
+      error: error.message,
+    });
+  }
 });
+
 
 // Get MCQ results for a job application
 router.get("/job-application/:applicationId/mcq-results", requireAuth(), async (req, res) => {
@@ -1127,14 +1123,32 @@ router.get("/final-report-metrics/:jobApplicationId", requireAuth(), async (req,
         console.log("Job Application ID:", jobApplicationId);
         console.log("Job Application ID Type:", typeof jobApplicationId);
 
-        // Try multiple approaches to find MCQ data - remove status filter initially
+        // Try multiple approaches to find MCQ data - prioritize completed status
         let mcqData = await MCQ.findOne({ 
             userId: user._id, 
-            jobApplicationId: jobApplicationId
+            jobApplicationId: jobApplicationId,
+            mcqStatus: 'completed'
         }).sort({ createdAt: -1 });
 
         if (!mcqData) {
+            console.log("No completed MCQ found, trying without status filter...");
+            mcqData = await MCQ.findOne({ 
+                userId: user._id, 
+                jobApplicationId: jobApplicationId
+            }).sort({ createdAt: -1 });
+        }
+
+        if (!mcqData) {
             console.log("No MCQ found with exact match, trying string conversion...");
+            mcqData = await MCQ.findOne({ 
+                userId: user._id, 
+                jobApplicationId: jobApplicationId.toString(),
+                mcqStatus: 'completed'
+            }).sort({ createdAt: -1 });
+        }
+
+        if (!mcqData) {
+            console.log("No completed MCQ found with string conversion, trying without status...");
             mcqData = await MCQ.findOne({ 
                 userId: user._id, 
                 jobApplicationId: jobApplicationId.toString()
@@ -1147,8 +1161,16 @@ router.get("/final-report-metrics/:jobApplicationId", requireAuth(), async (req,
             const mongoose = await import('mongoose');
             mcqData = await MCQ.findOne({ 
                 userId: user._id, 
-                jobApplicationId: new mongoose.Types.ObjectId(jobApplicationId)
+                jobApplicationId: new mongoose.Types.ObjectId(jobApplicationId),
+                mcqStatus: 'completed'
             }).sort({ createdAt: -1 });
+            
+            if (!mcqData) {
+                mcqData = await MCQ.findOne({ 
+                    userId: user._id, 
+                    jobApplicationId: new mongoose.Types.ObjectId(jobApplicationId)
+                }).sort({ createdAt: -1 });
+            }
         }
 
         // If still not found, get all MCQs for this user for debugging
@@ -1221,18 +1243,30 @@ router.get("/final-report-metrics/:jobApplicationId", requireAuth(), async (req,
         console.log("MCQ Data:", JSON.stringify(mcqData?.results, null, 2));
         console.log("Resume Analysis:", JSON.stringify(resumeAnalysis?.analysisResult, null, 2));
 
-        // Extract actual scores from the data
+        // Extract actual scores from the data with detailed debugging
+        console.log("=== SCORE EXTRACTION DEBUG ===");
+        
         const mcqScore = mcqData?.results?.score || 0;
         const resumeScore = resumeAnalysis?.analysisResult?.matchScore || 0;
+        
+        console.log("MCQ Data exists:", !!mcqData);
+        console.log("MCQ Results exists:", !!mcqData?.results);
+        console.log("MCQ Score raw:", mcqData?.results?.score);
+        console.log("MCQ Score final:", mcqScore);
+        console.log("MCQ Status:", mcqData?.mcqStatus);
+        
+        console.log("Resume Analysis exists:", !!resumeAnalysis);
+        console.log("Resume Analysis Result exists:", !!resumeAnalysis?.analysisResult);
+        console.log("Resume Score raw:", resumeAnalysis?.analysisResult?.matchScore);
+        console.log("Resume Score final:", resumeScore);
+        console.log("Resume Status:", resumeAnalysis?.analysisStatus);
 
         // Calculate job match percentage (weighted average)
         const validScores = [];
         if (mcqScore > 0) validScores.push(mcqScore);
         if (resumeScore > 0) validScores.push(resumeScore);
         
-        const jobMatch = validScores.length > 0 
-            ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
-            : 0;
+        const jobMatch = resumeScore || 0;
 
         // Calculate total score (50% job match, 25% resume, 25% mcq)
         const totalScore = Math.round(
@@ -1248,6 +1282,12 @@ router.get("/final-report-metrics/:jobApplicationId", requireAuth(), async (req,
             jobMatch: jobMatch,
             totalScore: totalScore
         };
+
+        console.log("=== FINAL METRICS DEBUG ===");
+        console.log("Final metrics data:", metricsData);
+        console.log("Valid scores for job match:", validScores);
+        console.log("Job match calculation:", jobMatch);
+        console.log("Total score calculation:", totalScore);
 
         const mcqDataForReport = mcqData ? {
             totalQuestions: mcqData.results.totalQuestions || 0,
