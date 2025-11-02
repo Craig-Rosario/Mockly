@@ -177,5 +177,44 @@ export const mcqApi = {
 
   // Get MCQ results
   getMCQResults: (applicationId: string, token?: string) =>
-    apiCall(`/users/job-application/${applicationId}/mcq-results`, {}, token)
+    apiCall(`/users/job-application/${applicationId}/mcq-results`, {}, token),
+
+  // Test answer format
+  testAnswerFormat: (answers: any[], token?: string) =>
+    apiCall(`/users/test-answer-format`, {
+      method: 'POST',
+      body: JSON.stringify({ answers })
+    }, token)
+};
+
+// Final Report API endpoints
+export const finalReportApi = {
+  // Get final report metrics
+  getMetrics: (applicationId: string, token?: string) =>
+    apiCall(`/users/final-report-metrics/${applicationId}`, {}, token),
+
+  // Generate improvement suggestions
+  generateImprovements: (applicationId: string, token?: string) =>
+    apiCall(`/users/generate-improvements/${applicationId}`, {
+      method: 'POST'
+    }, token),
+
+  // Get saved final report
+  getFinalReport: (applicationId: string, token?: string) =>
+    apiCall(`/users/final-report/${applicationId}`, {}, token),
+
+  // Debug endpoint to check existing data
+  debugData: (applicationId: string, token?: string) =>
+    apiCall(`/users/debug-data/${applicationId}`, {}, token),
+
+  // Test endpoint to check MCQ data storage
+  testMCQData: (applicationId: string, token?: string) =>
+    apiCall(`/users/test-mcq-data/${applicationId}`, {}, token),
+
+  // Test MCQ answer comparison logic
+  testMCQComparison: (testData: { questionOptions: string[], correctAnswer: string, selectedAnswer: any }, token?: string) =>
+    apiCall('/users/test-mcq-comparison', {
+      method: 'POST',
+      body: JSON.stringify(testData)
+    }, token)
 };

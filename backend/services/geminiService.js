@@ -312,3 +312,105 @@ const validateMCQResult = (result) => {
   
   return true;
 };
+
+/**
+ * Generate improvement suggestions using Gemini AI based on MCQ and Resume analysis data
+ * @param {Object} mcqData - MCQ results data
+ * @param {Object} resumeAnalysis - Resume analysis data
+ * @returns {Promise<Array>} - Array of improvement suggestions
+ */
+export const generateImprovementsWithGemini = async (mcqData, resumeAnalysis) => {
+  try {
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash",
+      generationConfig: modelConfig
+    });
+
+    const prompt = createImprovementPrompt(mcqData, resumeAnalysis);
+    
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Clean the response and parse JSON
+    const cleanedResponse = text.trim().replace(/```json/g, '').replace(/```/g, '');
+    
+    try {
+      const parsedResult = JSON.parse(cleanedResponse);
+      
+      // Validate the structure of the response
+      if (!Array.isArray(parsedResult)) {
+        throw new Error('Response should be an array of improvements');
+      }
+      
+      return parsedResult;
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response as JSON:', parseError);
+      throw new Error('Invalid JSON response from Gemini AI');
+    }
+    
+  } catch (error) {
+    console.error('Error in generateImprovementsWithGemini:', error);
+    throw new Error(`Failed to generate improvements: ${error.message}`);
+  }
+};
+
+/**
+ * Create improvement suggestions prompt for Gemini AI
+ * @param {Object} mcqData - MCQ results data
+ * @param {Object} resumeAnalysis - Resume analysis data
+ * @returns {string} - Formatted prompt for Gemini
+ */
+const createImprovementPrompt = (mcqData, resumeAnalysis) => {
+  let dataAnalysis = "";
+
+  if (mcqData) {
+    dataAnalysis += `
+MCQ Performance Analysis:
+- Total Score: ${mcqData.results.score}%
+- Correct Answers: ${mcqData.results.correctAnswers}/${mcqData.results.totalQuestions}
+- Time Taken: ${mcqData.results.timeTaken} seconds
+- Topic-wise Performance: ${JSON.stringify(mcqData.results.topicWisePerformance)}
+- Incorrect Answers Analysis: ${JSON.stringify(mcqData.results.answersSubmitted?.filter(ans => !ans.isCorrect))}
+`;
+  }
+
+  if (resumeAnalysis) {
+    dataAnalysis += `
+Resume Analysis Results:
+- Match Score: ${resumeAnalysis.analysisResult.matchScore}%
+- Keyword Coverage: ${resumeAnalysis.analysisResult.keywordAnalysis?.coveragePercentage}%
+- Missing Keywords: ${JSON.stringify(resumeAnalysis.analysisResult.keywordAnalysis?.neededKeywords?.filter(k => !k.found))}
+- Experience Analysis: ${JSON.stringify(resumeAnalysis.analysisResult.experienceAnalysis)}
+- Project Analysis: ${JSON.stringify(resumeAnalysis.analysisResult.projectAnalysis)}
+- Overall Suggestions: ${resumeAnalysis.analysisResult.overallSuggestions}
+`;
+  }
+
+  return `
+You are a career improvement expert. Based on the following assessment data, provide specific, actionable improvement suggestions.
+
+${dataAnalysis}
+
+Please analyze this data and provide improvement suggestions in the following JSON format:
+[
+  {
+    "title": "Brief improvement title (3-7 words)",
+    "description": "Detailed description of what needs to be improved and how",
+    "severity": "high|medium|low"
+  }
+]
+
+Guidelines for suggestions:
+1. Focus on specific weaknesses identified in the data
+2. Provide actionable advice that the candidate can implement
+3. Prioritize suggestions based on impact on job matching
+4. For MCQ weaknesses, suggest specific study areas or practice topics
+5. For resume gaps, suggest concrete ways to improve content
+6. Use "high" severity for critical gaps, "medium" for important improvements, "low" for minor enhancements
+7. Limit to 3-5 most impactful suggestions
+8. Make each suggestion specific and measurable when possible
+
+Return only the JSON array, no additional text or formatting.
+`;
+};
