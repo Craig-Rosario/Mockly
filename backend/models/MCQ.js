@@ -43,6 +43,7 @@ const MCQSchema = new mongoose.Schema({
     answersSubmitted: [{
       questionIndex: Number,
       selectedAnswer: String,
+      selectedIndex: Number,
       isCorrect: Boolean,
       timeSpent: Number
     }],
@@ -59,7 +60,7 @@ const MCQSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 
-MCQSchema.index({ userId: 1, jobApplicationId: 1 });
+MCQSchema.index({ userId: 1, jobApplicationId: 1 }, { unique: true });
 MCQSchema.index({ userId: 1, createdAt: -1 });
 
 export default mongoose.model("MCQ", MCQSchema);

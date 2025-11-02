@@ -745,6 +745,7 @@ router.post("/job-application/:applicationId/generate-mcqs", requireAuth(), asyn
         });
 
         if (existingMCQ) {
+            console.log("MCQs already exist for application:", applicationId, "Status:", existingMCQ.mcqStatus);
             return res.json({
                 message: "MCQs already generated for this application",
                 mcq: existingMCQ
@@ -786,16 +787,32 @@ router.post("/job-application/:applicationId/generate-mcqs", requireAuth(), asyn
             };
         });
 
-        // Create MCQ document
-        const mcqDoc = new MCQ({
-            userId: user._id,
-            jobApplicationId: applicationId,
-            jobDescription: application.jobDescription,
-            questions: mcqQuestions,
-            mcqStatus: 'generated'
-        });
+        // Use findOneAndUpdate with upsert to ensure only one document exists
+        const mcqDoc = await MCQ.findOneAndUpdate(
+            {
+                userId: user._id,
+                jobApplicationId: applicationId
+            },
+            {
+                userId: user._id,
+                jobApplicationId: applicationId,
+                jobDescription: application.jobDescription,
+                questions: mcqQuestions,
+                mcqStatus: 'generated',
+                generatedAt: new Date()
+            },
+            {
+                new: true,
+                upsert: true,
+                setDefaultsOnInsert: true
+            }
+        );
 
-        await mcqDoc.save();
+        console.log("MCQ document created/updated:", {
+            id: mcqDoc._id,
+            status: mcqDoc.mcqStatus,
+            questionsCount: mcqDoc.questions?.length || 0
+        });
 
         res.status(201).json({
             message: "MCQs generated successfully",
@@ -866,7 +883,8 @@ router.post("/job-application/:applicationId/submit-mcqs", requireAuth(), async 
     const user = await User.findOne({ clerkId: clerkUserId });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const mcq = await MCQ.findOne({
+    // Find the MCQ document and ensure we only have one
+    let mcq = await MCQ.findOne({
       userId: user._id,
       jobApplicationId: applicationId,
     });
@@ -874,6 +892,23 @@ router.post("/job-application/:applicationId/submit-mcqs", requireAuth(), async 
     if (!mcq) return res.status(404).json({ message: "MCQs not found for this application" });
     if (mcq.mcqStatus === "completed")
       return res.status(400).json({ message: "MCQs already completed for this application" });
+
+    // Clean up any duplicate MCQ documents for this application (keep the first one found)
+    const duplicateMcqs = await MCQ.find({
+      userId: user._id,
+      jobApplicationId: applicationId,
+      _id: { $ne: mcq._id }
+    });
+
+    if (duplicateMcqs.length > 0) {
+      console.log(`⚠️ Found ${duplicateMcqs.length} duplicate MCQ documents. Cleaning up...`);
+      await MCQ.deleteMany({
+        userId: user._id,
+        jobApplicationId: applicationId,
+        _id: { $ne: mcq._id }
+      });
+      console.log("✅ Duplicate MCQ documents removed");
+    }
 
     console.log("MCQ found:", {
       id: mcq._id,
@@ -896,30 +931,32 @@ router.post("/job-application/:applicationId/submit-mcqs", requireAuth(), async 
         return;
       }
 
-      const selectedAnswer = (answer.selectedAnswer || "").trim().toUpperCase();
-      const correctAnswer = (question.correctAnswer || "").trim().toUpperCase();
+      const selectedAnswer = (answer.selectedAnswer || "").trim();
+      const correctAnswer = (question.correctAnswer || "").trim();
+      const selectedIndex = answer.selectedIndex;
+      
       let isCorrect = false;
 
-      // ✅ Case 1: Both are letters (A–D)
-      if (
-        ["A", "B", "C", "D"].includes(selectedAnswer) &&
-        ["A", "B", "C", "D"].includes(correctAnswer)
-      ) {
-        isCorrect = selectedAnswer === correctAnswer;
+      // Method 1: Direct text comparison (most reliable for full option text)
+      if (selectedAnswer && correctAnswer) {
+        isCorrect = selectedAnswer.toLowerCase() === correctAnswer.toLowerCase();
       }
 
-      // 🔄 Case 2: Backward compatibility for old text-based answers
-      else {
-        let selectedText = selectedAnswer;
-
-        // If user sent a letter, map it to option text
-        if (["A", "B", "C", "D"].includes(selectedAnswer)) {
-          const idx = selectedAnswer.charCodeAt(0) - 65; // 'A'→0, 'B'→1
-          selectedText = question.options[idx];
+      // Method 2: If selectedIndex is provided, compare using index
+      if (!isCorrect && typeof selectedIndex === 'number' && selectedIndex >= 0) {
+        const selectedOption = question.options[selectedIndex];
+        if (selectedOption) {
+          isCorrect = selectedOption.trim().toLowerCase() === correctAnswer.toLowerCase();
         }
+      }
 
-        isCorrect =
-          selectedText?.trim().toLowerCase() === correctAnswer?.trim().toLowerCase();
+      // Method 3: Letter-based comparison (A-D) for backward compatibility
+      if (!isCorrect && selectedAnswer.length === 1 && ["A", "B", "C", "D"].includes(selectedAnswer.toUpperCase())) {
+        const letterIndex = selectedAnswer.toUpperCase().charCodeAt(0) - 65; // 'A'→0, 'B'→1
+        if (letterIndex >= 0 && letterIndex < question.options.length) {
+          const optionText = question.options[letterIndex];
+          isCorrect = optionText.trim().toLowerCase() === correctAnswer.toLowerCase();
+        }
       }
 
       if (isCorrect) correctAnswers++;
@@ -933,12 +970,13 @@ router.post("/job-application/:applicationId/submit-mcqs", requireAuth(), async 
       answersSubmitted.push({
         questionIndex: answer.questionIndex,
         selectedAnswer,
+        selectedIndex: typeof selectedIndex === 'number' ? selectedIndex : null,
         isCorrect,
         timeSpent: answer.timeSpent || 0,
       });
 
       console.log(
-        `Q${answer.questionIndex + 1}: ${isCorrect ? "✅ Correct" : "❌ Incorrect"} | Selected: ${selectedAnswer} | Correct: ${correctAnswer}`
+        `Q${answer.questionIndex + 1}: ${isCorrect ? "✅ Correct" : "❌ Incorrect"} | Selected: "${selectedAnswer}" | Correct: "${correctAnswer}" | SelectedIndex: ${selectedIndex}`
       );
     });
 
@@ -1026,14 +1064,32 @@ router.get("/job-application/:applicationId/mcq-results", requireAuth(), async (
             return res.status(404).json({ message: "User not found" });
         }
 
-        const mcq = await MCQ.findOne({
+        // Find the most recent completed MCQ for this application
+        let mcq = await MCQ.findOne({
             userId: user._id,
             jobApplicationId: applicationId,
             mcqStatus: 'completed'
-        });
+        }).sort({ completedAt: -1 });
+
+        // If no completed MCQ found, look for any MCQ with results
+        if (!mcq) {
+            mcq = await MCQ.findOne({
+                userId: user._id,
+                jobApplicationId: applicationId,
+                'results.totalQuestions': { $exists: true, $gt: 0 }
+            }).sort({ createdAt: -1 });
+        }
 
         if (!mcq) {
             return res.status(404).json({ message: "MCQ results not found" });
+        }
+
+        // If this MCQ has results but status is not completed, update it
+        if (mcq.results && mcq.results.totalQuestions > 0 && mcq.mcqStatus !== 'completed') {
+            console.log("Updating MCQ status to completed for existing results");
+            mcq.mcqStatus = 'completed';
+            mcq.completedAt = mcq.results.completedAt || new Date();
+            await mcq.save();
         }
 
         res.json({
@@ -1046,6 +1102,73 @@ router.get("/job-application/:applicationId/mcq-results", requireAuth(), async (
         console.error("Get MCQ results error:", error);
         res.status(500).json({
             message: "Failed to retrieve MCQ results",
+            error: error.message
+        });
+    }
+});
+
+// Cleanup duplicate MCQ documents
+router.post("/cleanup-duplicate-mcqs", requireAuth(), async (req, res) => {
+    try {
+        const clerkUserId = req.auth.userId;
+        
+        const user = await User.findOne({ clerkId: clerkUserId });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Find all MCQ documents for this user
+        const allMcqs = await MCQ.find({ userId: user._id }).sort({ createdAt: 1 });
+        
+        // Group by jobApplicationId
+        const mcqGroups = {};
+        allMcqs.forEach(mcq => {
+            const key = mcq.jobApplicationId.toString();
+            if (!mcqGroups[key]) {
+                mcqGroups[key] = [];
+            }
+            mcqGroups[key].push(mcq);
+        });
+
+        let duplicatesRemoved = 0;
+        let applicationsProcessed = 0;
+
+        // For each job application, keep only the most recent completed MCQ, or the most recent one if none completed
+        for (const [appId, mcqs] of Object.entries(mcqGroups)) {
+            if (mcqs.length > 1) {
+                applicationsProcessed++;
+                
+                // Sort by priority: completed status first, then by creation date (newest first)
+                mcqs.sort((a, b) => {
+                    if (a.mcqStatus === 'completed' && b.mcqStatus !== 'completed') return -1;
+                    if (b.mcqStatus === 'completed' && a.mcqStatus !== 'completed') return 1;
+                    return new Date(b.createdAt) - new Date(a.createdAt);
+                });
+
+                // Keep the first one (highest priority), remove the rest
+                const toKeep = mcqs[0];
+                const toRemove = mcqs.slice(1);
+
+                console.log(`Application ${appId}: Keeping MCQ ${toKeep._id} (${toKeep.mcqStatus}), removing ${toRemove.length} duplicates`);
+
+                for (const mcq of toRemove) {
+                    await MCQ.deleteOne({ _id: mcq._id });
+                    duplicatesRemoved++;
+                }
+            }
+        }
+
+        res.json({
+            message: "Duplicate MCQ cleanup completed",
+            applicationsProcessed,
+            duplicatesRemoved,
+            totalApplications: Object.keys(mcqGroups).length
+        });
+
+    } catch (error) {
+        console.error("Cleanup duplicate MCQs error:", error);
+        res.status(500).json({
+            message: "Failed to cleanup duplicate MCQs",
             error: error.message
         });
     }
@@ -1123,32 +1246,14 @@ router.get("/final-report-metrics/:jobApplicationId", requireAuth(), async (req,
         console.log("Job Application ID:", jobApplicationId);
         console.log("Job Application ID Type:", typeof jobApplicationId);
 
-        // Try multiple approaches to find MCQ data - prioritize completed status
+        // Try multiple approaches to find MCQ data - remove status filter initially
         let mcqData = await MCQ.findOne({ 
             userId: user._id, 
-            jobApplicationId: jobApplicationId,
-            mcqStatus: 'completed'
+            jobApplicationId: jobApplicationId
         }).sort({ createdAt: -1 });
 
         if (!mcqData) {
-            console.log("No completed MCQ found, trying without status filter...");
-            mcqData = await MCQ.findOne({ 
-                userId: user._id, 
-                jobApplicationId: jobApplicationId
-            }).sort({ createdAt: -1 });
-        }
-
-        if (!mcqData) {
             console.log("No MCQ found with exact match, trying string conversion...");
-            mcqData = await MCQ.findOne({ 
-                userId: user._id, 
-                jobApplicationId: jobApplicationId.toString(),
-                mcqStatus: 'completed'
-            }).sort({ createdAt: -1 });
-        }
-
-        if (!mcqData) {
-            console.log("No completed MCQ found with string conversion, trying without status...");
             mcqData = await MCQ.findOne({ 
                 userId: user._id, 
                 jobApplicationId: jobApplicationId.toString()
@@ -1161,16 +1266,8 @@ router.get("/final-report-metrics/:jobApplicationId", requireAuth(), async (req,
             const mongoose = await import('mongoose');
             mcqData = await MCQ.findOne({ 
                 userId: user._id, 
-                jobApplicationId: new mongoose.Types.ObjectId(jobApplicationId),
-                mcqStatus: 'completed'
+                jobApplicationId: new mongoose.Types.ObjectId(jobApplicationId)
             }).sort({ createdAt: -1 });
-            
-            if (!mcqData) {
-                mcqData = await MCQ.findOne({ 
-                    userId: user._id, 
-                    jobApplicationId: new mongoose.Types.ObjectId(jobApplicationId)
-                }).sort({ createdAt: -1 });
-            }
         }
 
         // If still not found, get all MCQs for this user for debugging
@@ -1243,23 +1340,9 @@ router.get("/final-report-metrics/:jobApplicationId", requireAuth(), async (req,
         console.log("MCQ Data:", JSON.stringify(mcqData?.results, null, 2));
         console.log("Resume Analysis:", JSON.stringify(resumeAnalysis?.analysisResult, null, 2));
 
-        // Extract actual scores from the data with detailed debugging
-        console.log("=== SCORE EXTRACTION DEBUG ===");
-        
+        // Extract actual scores from the data
         const mcqScore = mcqData?.results?.score || 0;
         const resumeScore = resumeAnalysis?.analysisResult?.matchScore || 0;
-        
-        console.log("MCQ Data exists:", !!mcqData);
-        console.log("MCQ Results exists:", !!mcqData?.results);
-        console.log("MCQ Score raw:", mcqData?.results?.score);
-        console.log("MCQ Score final:", mcqScore);
-        console.log("MCQ Status:", mcqData?.mcqStatus);
-        
-        console.log("Resume Analysis exists:", !!resumeAnalysis);
-        console.log("Resume Analysis Result exists:", !!resumeAnalysis?.analysisResult);
-        console.log("Resume Score raw:", resumeAnalysis?.analysisResult?.matchScore);
-        console.log("Resume Score final:", resumeScore);
-        console.log("Resume Status:", resumeAnalysis?.analysisStatus);
 
         // Calculate job match percentage (weighted average)
         const validScores = [];
@@ -1282,12 +1365,6 @@ router.get("/final-report-metrics/:jobApplicationId", requireAuth(), async (req,
             jobMatch: jobMatch,
             totalScore: totalScore
         };
-
-        console.log("=== FINAL METRICS DEBUG ===");
-        console.log("Final metrics data:", metricsData);
-        console.log("Valid scores for job match:", validScores);
-        console.log("Job match calculation:", jobMatch);
-        console.log("Total score calculation:", totalScore);
 
         const mcqDataForReport = mcqData ? {
             totalQuestions: mcqData.results.totalQuestions || 0,
