@@ -136,9 +136,34 @@ const McqAnalysis = () => {
             (answer: any) => answer.questionIndex === index
           );
           
-          const correctIndex = question.options.findIndex(opt => opt === question.correctAnswer);
-          const selectedIndex = userAnswer ? 
-            question.options.findIndex(opt => opt === userAnswer.selectedAnswer) : null;
+          const correctIndex = question.options.findIndex(opt => 
+            opt.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase()
+          );
+          
+          let selectedIndex = null;
+          if (userAnswer) {
+            // Use selectedIndex if available from backend
+            if (typeof userAnswer.selectedIndex === 'number' && userAnswer.selectedIndex >= 0) {
+              selectedIndex = userAnswer.selectedIndex;
+            } else if (userAnswer.selectedAnswer) {
+              // Fallback: find index by matching selected answer text
+              selectedIndex = question.options.findIndex(opt => 
+                opt.trim().toLowerCase() === userAnswer.selectedAnswer.trim().toLowerCase()
+              );
+            }
+          }
+
+          const isCorrect = userAnswer?.isCorrect === true;
+
+          console.log(`Question ${index + 1} processing:`, {
+            question: question.question.substring(0, 50) + "...",
+            correctAnswer: question.correctAnswer,
+            correctIndex,
+            selectedAnswer: userAnswer?.selectedAnswer,
+            selectedIndex,
+            isCorrect: userAnswer?.isCorrect,
+            calculated: selectedIndex === correctIndex
+          });
 
           return {
             id: index + 1,
@@ -147,7 +172,7 @@ const McqAnalysis = () => {
             options: question.options,
             correctIndex,
             selectedIndex,
-            correct: userAnswer?.isCorrect || false,
+            correct: isCorrect,
             timeSpentSec: userAnswer?.timeSpent || 0
           };
         });

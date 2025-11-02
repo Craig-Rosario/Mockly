@@ -177,6 +177,7 @@ const Mcq = () => {
       const submissionData = finalizedAnswers.map((answer, index) => ({
         questionIndex: index,
         selectedAnswer: answer.selectedIndex !== null ? questions[index].options[answer.selectedIndex] : '',
+        selectedIndex: answer.selectedIndex,
         timeSpent: answer.timeSpentSec
       }))
 
@@ -206,7 +207,9 @@ const Mcq = () => {
           selectedOption: userAnswer.selectedIndex !== null ? q.options[userAnswer.selectedIndex] : null
         });
         
-        const correctIndex = q.options.findIndex(opt => opt === q.correctAnswer)
+        const correctIndex = q.options.findIndex(opt => 
+          opt.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()
+        )
         console.log(`Question ${idx + 1} correctIndex:`, correctIndex);
         
         const isCorrect = userAnswer.selectedIndex !== null && 
