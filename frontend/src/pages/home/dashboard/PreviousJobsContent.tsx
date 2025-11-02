@@ -12,7 +12,6 @@ import {
     Target,
     CheckCircle,
     X,
-    ExternalLink,
 } from "lucide-react"
 import { useAuth } from "@clerk/clerk-react"
 import { useEffect, useState } from "react"
@@ -50,6 +49,15 @@ interface JobApplication {
         overallScore: number;
         feedback?: string;
         conductedAt?: string;
+    };
+    finalReport?: {
+        metrics: {
+            mcqScore: number;
+            resumeScore: number;
+            jobMatch: number;
+            totalScore: number;
+        };
+        reportStatus: string;
     };
 }
 
@@ -122,6 +130,13 @@ const PreviousJobsContent = () => {
     };
 
     const getMatchPercentage = (application: JobApplication) => {
+        // First priority: Use final report total score if available
+        if (application.finalReport?.metrics?.totalScore !== undefined) {
+            const totalScore = application.finalReport.metrics.totalScore;
+            return Math.max(0, Math.min(100, Math.round(totalScore)));
+        }
+
+        // Fallback: Calculate from individual results
         let score = 0;
         let total = 0;
 
@@ -353,10 +368,40 @@ const PreviousJobsContent = () => {
                                         </div>
                                     )}
 
+                                    {/* Final Report - Comprehensive Analysis */}
+                                    {selectedApplication.finalReport && (
+                                        <div>
+                                            <h4 className="text-lg font-semibold text-white mb-4">Final Analysis Report</h4>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                                                <div className="text-center p-4 bg-gray-800 rounded-lg">
+                                                    <p className="text-2xl font-bold text-white">{selectedApplication.finalReport.metrics.totalScore}%</p>
+                                                    <p className="text-gray-400 text-sm">Total Score</p>
+                                                </div>
+                                                <div className="text-center p-4 bg-gray-800 rounded-lg">
+                                                    <p className="text-2xl font-bold text-white">{selectedApplication.finalReport.metrics.resumeScore}%</p>
+                                                    <p className="text-gray-400 text-sm">Resume Score</p>
+                                                </div>
+                                                <div className="text-center p-4 bg-gray-800 rounded-lg">
+                                                    <p className="text-2xl font-bold text-white">{selectedApplication.finalReport.metrics.mcqScore}%</p>
+                                                    <p className="text-gray-400 text-sm">MCQ Score</p>
+                                                </div>
+                                                <div className="text-center p-4 bg-gray-800 rounded-lg">
+                                                    <p className="text-2xl font-bold text-white">{selectedApplication.finalReport.metrics.jobMatch}%</p>
+                                                    <p className="text-gray-400 text-sm">Job Match</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Match Percentage */}
                                     <div className="text-center p-6 bg-gray-800 rounded-lg">
                                         <p className="text-gray-400 text-sm">Overall Profile Match</p>
                                         <p className="text-3xl font-bold text-white mt-2">{getMatchPercentage(selectedApplication)}%</p>
+                                        {selectedApplication.finalReport && (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Based on Final Analysis Report
+                                            </p>
+                                        )}
                                         <div className="w-32 h-32 mx-auto mt-4">
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <PieChart>
@@ -438,9 +483,15 @@ const PreviousJobsContent = () => {
                             <Target className="w-6 h-6 text-white" />
                         </div>
                         <div className="text-2xl font-bold text-white">
-                            {jobApplications.length > 0 
-                                ? Math.round(jobApplications.reduce((acc, app) => acc + getMatchPercentage(app), 0) / jobApplications.length)
-                                : 0}%
+                            {(() => {
+                                if (jobApplications.length === 0) return '0';
+                                const total = jobApplications.reduce((acc, app) => {
+                                    const percentage = getMatchPercentage(app);
+                                    return acc + (isNaN(percentage) ? 0 : percentage);
+                                }, 0);
+                                const average = Math.round(total / jobApplications.length);
+                                return isNaN(average) ? '0' : average.toString();
+                            })()}%
                         </div>
                         <p className="text-gray-400">Avg Match</p>
                     </CardContent>
