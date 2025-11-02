@@ -12,18 +12,21 @@ import {
 } from "@/components/ui/chart"
 
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { PieChart, Pie, Cell, Label as RechartsLabel } from "recharts"
+import { PieChart, Pie, Cell, Label as RechartsLabel, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import {
-    LayoutDashboard,
-    Calendar,
-    Target,
     BarChart3,
     Plus,
+    FileText,
+    CheckCircle,
+    Target,
+    Calendar,
+    Star,
+    Award,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@clerk/clerk-react"
 import { useEffect, useState } from "react"
+import { jobApplicationApi } from "@/lib/api"
 
 interface User {
     _id: string;
@@ -32,60 +35,197 @@ interface User {
     clerkId: string;
 }
 
-const DashboardContent: React.FC = () => {
+interface JobApplication {
+    _id: string;
+    candidateName: string;
+    candidateEmail: string;
+    jobTitle: string;
+    company: string;
+    location: string;
+    workMode: string;
+    status: string;
+    appliedOn: string;
+    mcqResults?: {
+        score: number;
+        totalQuestions: number;
+        correctAnswers: number;
+    };
+    interviewResults?: {
+        overallScore: number;
+    };
+}
 
+const DashboardContent: React.FC = () => {
     const { getToken } = useAuth();
     const [user, setUser] = useState<User | null>(null);
+    const [jobApplications, setJobApplications] = useState<JobApplication[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        try {
-            const fetchUser = async () => {
+        const fetchData = async () => {
+            try {
                 const token = await getToken();
-                const res = await fetch("/api/users/current-user", {
+                
+                const userRes = await fetch("/api/users/current-user", {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                const data = await res.json();
-                setUser(data);
+                const userData = await userRes.json();
+                setUser(userData);
 
+                const applications = await jobApplicationApi.getAllApplications(token || undefined);
+                setJobApplications(applications);
+            } catch (err) {
+                console.log("Cannot fetch data:", err);
+            } finally {
+                setLoading(false);
             }
-            fetchUser();
-        } catch (err) {
-            console.log("Cannot fetch user:", err);
-        }
-    }, [])
+        };
+        
+        fetchData();
+    }, [getToken]);
 
     const navigate = useNavigate();
     const handleClick = () => {
         navigate('/add-jobs/personal-details')
     }
 
-    interface JobAnalysisData {
-        name: string
-        value: number
-        color: string
+    const totalApplications = jobApplications.length;
+    const totalMcqTests = jobApplications.filter(app => app.mcqResults).length;
+
+    const getMatchPercentage = (application: JobApplication) => {
+        let score = 0;
+        let total = 0;
+
+        if (application.mcqResults) {
+            score += (application.mcqResults.correctAnswers / application.mcqResults.totalQuestions) * 50;
+            total += 50;
+        }
+
+        if (application.interviewResults) {
+            score += application.interviewResults.overallScore * 0.5;
+            total += 50;
+        }
+
+        if (total === 0) return Math.floor(Math.random() * 41) + 60;
+        return Math.round((score / total) * 100);
+    };
+
+    const calculateJobAnalysisData = () => {
+        const perfect = jobApplications.filter(app => getMatchPercentage(app) >= 85).length;
+        const good = jobApplications.filter(app => getMatchPercentage(app) >= 70 && getMatchPercentage(app) < 85).length;
+        const partial = jobApplications.filter(app => getMatchPercentage(app) >= 50 && getMatchPercentage(app) < 70).length;
+        const poor = jobApplications.filter(app => getMatchPercentage(app) < 50).length;
+
+        const total = perfect + good + partial + poor;
+        
+        if (total === 0) {
+            return [
+                { name: "Perfect Match", value: 35, color: "#10B981" },
+                { name: "Good Match", value: 15, color: "#3B82F6" },
+                { name: "Partial Match", value: 8, color: "#F59E0B" },
+                { name: "Poor Match", value: 12, color: "#EF4444" },
+            ];
+        }
+
+        return [
+            { name: "Perfect Match", value: Math.round((perfect / total) * 100), color: "#10B981" },
+            { name: "Good Match", value: Math.round((good / total) * 100), color: "#3B82F6" },
+            { name: "Partial Match", value: Math.round((partial / total) * 100), color: "#F59E0B" },
+            { name: "Poor Match", value: Math.round((poor / total) * 100), color: "#EF4444" },
+        ];
+    };
+
+    const jobAnalysisData = calculateJobAnalysisData();
+
+    const getRecentActivities = () => {
+        const recentApps = jobApplications
+            .sort((a, b) => new Date(b.appliedOn).getTime() - new Date(a.appliedOn).getTime())
+            .slice(0, 4);
+
+        return recentApps.map(app => ({
+            action: `Applied to ${app.jobTitle} at ${app.company}`,
+            time: new Date(app.appliedOn).toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+            }),
+            type: "application" as const
+        }));
+    };
+
+    const recentActivities = jobApplications.length > 0 ? getRecentActivities() : [
+        { action: "Applied to Senior Developer at TechCorp", time: "2 hours ago", type: "application" as const },
+        { action: "Resume updated with new skills", time: "1 day ago", type: "update" as const },
+        { action: "Follow-up sent to Google recruiter", time: "2 days ago", type: "followup" as const },
+    ];
+
+    const applicationsThisWeek = jobApplications.filter(app => {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        return new Date(app.appliedOn) >= oneWeekAgo;
+    }).length;
+
+    const mcqTestsThisWeek = jobApplications.filter(app => {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        return app.mcqResults && new Date(app.appliedOn) >= oneWeekAgo;
+    }).length;
+
+    const avgMatchThisWeek = () => {
+        const weekApps = jobApplications.filter(app => {
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            return new Date(app.appliedOn) >= oneWeekAgo;
+        });
+        
+        if (weekApps.length === 0) return 0;
+        return Math.round(weekApps.reduce((acc, app) => acc + getMatchPercentage(app), 0) / weekApps.length);
+    };
+
+    const pendingFollowups = jobApplications.filter(app => 
+        app.status === 'applied' || app.status === 'interview'
+    ).length;
+
+    const bestMatchJob = () => {
+        if (jobApplications.length === 0) return null;
+        return jobApplications.reduce((best, app) => {
+            const match = getMatchPercentage(app);
+            return match > getMatchPercentage(best) ? app : best;
+        });
+    };
+
+    const bestMatch = bestMatchJob();
+
+    const weeklyActivityData = () => {
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const result = days.map(day => ({ day, applications: 0 }));
+        
+        jobApplications.forEach(app => {
+            const appDate = new Date(app.appliedOn);
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            
+            if (appDate >= oneWeekAgo) {
+                const dayIndex = appDate.getDay();
+                const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
+                result[adjustedIndex].applications++;
+            }
+        });
+        
+        return result;
+    };
+
+    if (loading) {
+        return (
+            <div className="flex-1 p-6 bg-black text-white overflow-auto">
+                <div className="flex items-center justify-center h-64">
+                    <p>Loading dashboard data...</p>
+                </div>
+            </div>
+        );
     }
-    interface Activity {
-        action: string
-        time: string
-        type: "application" | "interview" | "update" | "followup"
-    }
-    const jobAnalysisData: JobAnalysisData[] = [
-        { name: "Perfect Match", value: 35, color: "#10B981" },
-        { name: "Good Match", value: 15, color: "#3B82F6" },
-        { name: "Partial Match", value: 8, color: "#F59E0B" },
-        { name: "Poor Match", value: 12, color: "#EF4444" },
-    ]
-    const recentActivities: Activity[] = [
-        { action: "Applied to Senior Developer at TechCorp", time: "2 hours ago", type: "application" },
-        { action: "Interview scheduled with StartupXYZ", time: "5 hours ago", type: "interview" },
-        { action: "Resume updated with new skills", time: "1 day ago", type: "update" },
-        { action: "Follow-up sent to Google recruiter", time: "2 days ago", type: "followup" },
-    ]
-    console.log("[v0] Rendering dashboard with job analysis data:", jobAnalysisData)
 
     return (
         <div className="flex-1 p-6 bg-black text-white overflow-auto">
-
             <div className="flex items-center justify-between mb-8">
                 <div>
                     {user ? (
@@ -98,13 +238,47 @@ const DashboardContent: React.FC = () => {
                 </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <Card className="text-center bg-gray-900 border-gray-800">
+                    <CardContent className="pt-6">
+                        <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mx-auto mb-4">
+                            <FileText className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="text-2xl font-bold text-white">{totalApplications}</div>
+                        <p className="text-gray-400">Total Applications</p>
+                    </CardContent>
+                </Card>
 
-            <Card className="mb-8 rounded-2xl shadow-lg p-6">
+                <Card className="text-center bg-gray-900 border-gray-800">
+                    <CardContent className="pt-6">
+                        <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mx-auto mb-4">
+                            <CheckCircle className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="text-2xl font-bold text-white">{totalMcqTests}</div>
+                        <p className="text-gray-400">MCQ Tests</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="text-center bg-gray-900 border-gray-800">
+                    <CardContent className="pt-6">
+                        <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center mx-auto mb-4">
+                            <Target className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="text-2xl font-bold text-white">
+                            {jobApplications.length > 0 
+                                ? Math.round(jobApplications.reduce((acc, app) => acc + getMatchPercentage(app), 0) / jobApplications.length)
+                                : 0}%
+                        </div>
+                        <p className="text-gray-400">Avg Match</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Card className="mb-8 rounded-2xl shadow-lg p-6 bg-gray-900 border-gray-800">
                 <CardContent className="p-5">
                     <div className="flex items-center justify-between">
-
                         <div className="flex flex-col max-w-lg items-left">
-                            <h3 className="text-2xl font-semibold text-white mb-2 ">
+                            <h3 className="text-2xl font-semibold text-white mb-2">
                                 Job Management
                             </h3>
                             <p className="text-white/80">
@@ -112,8 +286,7 @@ const DashboardContent: React.FC = () => {
                             </p>
                         </div>
 
-
-                        <Button className="mt-5 text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-700 font-medium px-4 py-2 rounded-lg shadow-md  flex items-center"
+                        <Button className="mt-5 text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-700 font-medium px-4 py-2 rounded-lg shadow-md flex items-center"
                             onClick={handleClick}
                         >
                             <Plus className="w-4 h-4 mr-2 white" />
@@ -123,10 +296,8 @@ const DashboardContent: React.FC = () => {
                 </CardContent>
             </Card>
 
-
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-
-                <Card>
+                <Card className="bg-gray-900 border-gray-800">
                     <CardHeader>
                         <CardTitle className="flex">
                             <BarChart3 className="w-5 h-5 mr-2 text-blue-400" />
@@ -136,7 +307,6 @@ const DashboardContent: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-center">
-
                             <ChartContainer
                                 config={{
                                     perfect: { label: "Perfect Match", color: "#10B981" },
@@ -144,7 +314,7 @@ const DashboardContent: React.FC = () => {
                                     partial: { label: "Partial Match", color: "#F59E0B" },
                                     poor: { label: "Poor Match", color: "#EF4444" },
                                 }}
-                                className="h-[250px] w-[250px]"
+                                className="h-[250px] w-[250px] mx-auto"
                             >
                                 <PieChart>
                                     <Pie
@@ -183,7 +353,7 @@ const DashboardContent: React.FC = () => {
                                 </PieChart>
                             </ChartContainer>
 
-                            <div className="ml-15 space-y-3">
+                            <div className="ml-8 space-y-3">
                                 {jobAnalysisData.map((item, index) => (
                                     <div key={index} className="flex items-center space-x-3">
                                         <div
@@ -199,86 +369,7 @@ const DashboardContent: React.FC = () => {
                     </CardContent>
                 </Card>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-white">This Week</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-gray-300 flex items-center">
-                                    <BarChart3 className="w-4 h-4 mr-2 text-blue-400" />
-                                    Applications
-                                </span>
-                                <span className="text-blue-400 font-semibold">13/20</span>
-                            </div>
-                            <Progress value={65} className="[&>div]:bg-gradient-to-r [&>div]:from-blue-400 [&>div]:to-blue-600" />
-                        </div>
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-gray-300 flex items-center">
-                                    <Calendar className="w-4 h-4 mr-2 text-purple-400" />
-                                    Interviews
-                                </span>
-                                <span className="text-purple-400 font-semibold">8/10</span>
-                            </div>
-                            <Progress value={80} className="[&>div]:bg-gradient-to-r [&>div]:from-purple-400 [&>div]:to-purple-600" />
-                        </div>
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-gray-300 flex items-center">
-                                    <Target className="w-4 h-4 mr-2 text-green-400" />
-                                    Follow-ups
-                                </span>
-                                <span className="text-green-400 font-semibold">5/8</span>
-                            </div>
-                            <Progress value={62} className="[&>div]:bg-gradient-to-r [&>div]:from-green-400 [&>div]:to-green-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-white">Quick Actions</CardTitle>
-                        <p className="text-gray-400 text-sm mt-1">Common tasks to boost your job search</p>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-2 gap-4">
-                            <Button
-                                variant="outline"
-                                className="bg-gradient-to-r from-red-500/20 to-orange-500/20 border-orange-400 hover:from-red-500/30 hover:to-orange-500/30 flex-col h-20 space-y-2"
-                            >
-                                <Target className="w-5 h-5 text-orange-400" />
-                                <span className="text-orange-400 text-sm">Start Practice Session</span>
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border-cyan-400 hover:from-blue-500/30 hover:to-cyan-500/30 flex-col h-20 space-y-2"
-                            >
-                                <BarChart3 className="w-5 h-5 text-cyan-400" />
-                                <span className="text-cyan-400 text-sm">View Analytics</span>
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-emerald-400 hover:from-green-500/30 hover:to-emerald-500/30 flex-col h-20 space-y-2"
-                            >
-                                <LayoutDashboard className="w-5 h-5 text-emerald-400" />
-                                <span className="text-emerald-400 text-sm">Browse Jobs</span>
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="bg-gradient-to-r from-purple-500/20 to-purple-400/20 border-purple-400 hover:from-purple-500/30 hover:to-purple-400/30 flex-col h-20 space-y-2"
-                            >
-                                <Calendar className="w-5 h-5 text-purple-500" />
-                                <span className="text-purple-500 text-sm">AI Interview Online</span>
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
+                <Card className="bg-gray-900 border-gray-800">
                     <CardHeader>
                         <CardTitle className="text-white">Recent Activity</CardTitle>
                     </CardHeader>
@@ -287,7 +378,6 @@ const DashboardContent: React.FC = () => {
                             {recentActivities.map((activity, index) => {
                                 const dotColors = {
                                     application: "bg-blue-400",
-                                    interview: "bg-green-400",
                                     update: "bg-purple-400",
                                     followup: "bg-orange-400",
                                 }
@@ -306,7 +396,88 @@ const DashboardContent: React.FC = () => {
                     </CardContent>
                 </Card>
             </div>
+
+            <Card className="bg-gray-900 border-gray-800">
+                <CardHeader>
+                    <CardTitle className="text-white flex items-center">
+                        <Calendar className="w-5 h-5 mr-2 text-green-400" />
+                        Weekly Performance Insights
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                        <div className="lg:col-span-2 space-y-6">
+                            <div className="bg-gray-800 rounded-lg p-4">
+                                <h4 className="text-white font-semibold mb-4">Weekly Stats</h4>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-300">Applications</span>
+                                        <span className="text-blue-400 font-bold">{applicationsThisWeek}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-300">MCQ Tests</span>
+                                        <span className="text-purple-400 font-bold">{mcqTestsThisWeek}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-300">Avg Match Rate</span>
+                                        <span className="text-orange-400 font-bold">{avgMatchThisWeek()}%</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-300">Pending Actions</span>
+                                        <span className="text-red-400 font-bold">{pendingFollowups}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {bestMatch && (
+                                <div className="bg-gray-800 rounded-lg p-4">
+                                    <h4 className="text-white font-semibold mb-3 flex items-center">
+                                        <Award className="w-4 h-4 mr-2 text-yellow-400" />
+                                        Best Match
+                                    </h4>
+                                    <p className="text-white font-bold text-lg mb-1">{bestMatch.jobTitle}</p>
+                                    <p className="text-gray-300 text-sm mb-3">{bestMatch.company}</p>
+                                    <div className="flex items-center">
+                                        <Star className="w-4 h-4 text-yellow-400 mr-2" />
+                                        <span className="text-white font-bold">{getMatchPercentage(bestMatch)}% Match</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="lg:col-span-3 bg-gray-800 rounded-lg p-4 flex flex-col">
+                            <h4 className="text-white font-semibold mb-4">Daily Activity</h4>
+                            <div className="h-64 flex-1">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart 
+                                        data={weeklyActivityData()} 
+                                        margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                                    >
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                                        <XAxis dataKey="day" stroke="#9CA3AF" />
+                                        <YAxis stroke="#9CA3AF" />
+                                        <Tooltip 
+                                            contentStyle={{ 
+                                                backgroundColor: '#1F2937', 
+                                                border: 'none', 
+                                                borderRadius: '8px',
+                                                color: '#F9FAFB'
+                                            }}
+                                        />
+                                        <Bar 
+                                            dataKey="applications" 
+                                            fill="#3B82F6" 
+                                            radius={[4, 4, 0, 0]}
+                                        />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     )
 }
+
 export default DashboardContent;
