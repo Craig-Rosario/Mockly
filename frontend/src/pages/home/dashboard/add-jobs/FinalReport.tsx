@@ -1,10 +1,14 @@
-import { useLocation, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Label } from "@/components/ui/label"
 import AppStepper from "@/components/custom/AppStepper"
-import { Award, Target, FileText, ListChecks, AlertTriangle, User, ListTodo } from "lucide-react"
+import { Award, Target, FileText, ListChecks, AlertTriangle, User } from "lucide-react"
+import { useEffect, useState } from "react"
+import { useAuth } from "@clerk/react-router"
+import { finalReportApi } from "@/lib/api"
+import Mloader from "@/components/custom/Mloader"
 
 type Improvement = {
   title: string
@@ -19,6 +23,39 @@ type MetricsState = {
   mcqScore?: number
   interviewScore?: number
   improvements?: Improvement[]
+  mcqData?: {
+    totalQuestions: number
+    correctAnswers: number
+    timeTaken: number
+    topicWisePerformance: Array<{
+      topic: string
+      correct: number
+      total: number
+      percentage: number
+    }>
+  }
+  resumeData?: {
+    keywordAnalysis: {
+      coveragePercentage: number
+      neededKeywords: Array<{
+        keyword: string
+        found: boolean
+      }>
+    }
+    experienceAnalysis: Array<{
+      title: string
+      relevanceScore: number
+      depthScore: number
+      suggestions: string[]
+    }>
+    projectAnalysis: Array<{
+      title: string
+      relevanceScore: number
+      complexityScore: number
+      suggestions: string[]
+    }>
+    overallSuggestions: string
+  }
 }
 
 function clamp(n: number, min = 0, max = 100) {
@@ -33,7 +70,7 @@ const defaultImprovements: Improvement[] = [
   },
   {
     title: "Cover missing keywords",
-    description: "Address gaps such as Docker and PostgreSQL where applicable.",
+    description: "Address such as Docker and PostgreSQL where applicable.",
     severity: "medium",
   },
   {
@@ -63,15 +100,105 @@ const severityStyles: Record<NonNullable<Improvement["severity"]>, { dot: string
 
 const FinalReport = () => {
   const navigate = useNavigate()
-  const location = useLocation()
-  const state = (location.state || {}) as MetricsState
-  const resume = clamp(state.resumeScore ?? 64)
-  const mcq = clamp(state.mcqScore ?? 76)
-  const interview = clamp(state.interviewScore ?? 84)
-  const jobMatch = clamp(state.jobMatch ?? 72)
-  const computedTotal = 0.4 * jobMatch + 0.2 * resume + 0.2 * mcq + 0.2 * interview
-  const total = clamp(Math.round(state.totalScore ?? computedTotal))
-  const improvements = state.improvements?.length ? state.improvements : defaultImprovements
+  const { getToken } = useAuth()
+  const [metrics, setMetrics] = useState<MetricsState | null>(null)
+  const [improvements, setImprovements] = useState<Improvement[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Get job application ID from localStorage
+        const applicationId = localStorage.getItem('currentApplicationId')
+        if (!applicationId) {
+          setError('No job application found. Please start a new application.')
+          return
+        }
+
+        const token = await getToken()
+
+        // Debug: Check what data exists
+        try {
+          const debugResponse = await finalReportApi.debugData(applicationId, token || undefined)
+          console.log('Debug Data:', debugResponse)
+          
+          const testMCQResponse = await finalReportApi.testMCQData(applicationId, token || undefined)
+          console.log('Test MCQ Data:', testMCQResponse)
+        } catch (debugError) {
+          console.warn('Debug endpoint failed:', debugError)
+        }
+
+        // Fetch metrics
+        const metricsResponse = await finalReportApi.getMetrics(applicationId, token || undefined)
+        if (metricsResponse.success) {
+          console.log('Metrics Response:', metricsResponse)
+          setMetrics({
+            ...metricsResponse.metrics,
+            mcqData: metricsResponse.mcqData,
+            resumeData: metricsResponse.resumeData
+          })
+        }
+
+        // Generate improvements
+        const improvementsResponse = await finalReportApi.generateImprovements(applicationId, token || undefined)
+        if (improvementsResponse.success) {
+          console.log('Improvements Response:', improvementsResponse)
+          setImprovements(improvementsResponse.improvements)
+        }
+
+      } catch (error) {
+        console.error('Error fetching final report data:', error)
+        setError(error instanceof Error ? error.message : 'Failed to load final report data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [getToken])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full bg-zinc-950 text-white p-8 flex items-center justify-center">
+        <Mloader />
+      </div>
+    )
+  }
+
+  if (error || !metrics) {
+    return (
+      <div className="min-h-screen w-full bg-zinc-950 text-white p-8 flex items-center justify-center">
+        <Card className="bg-zinc-900 max-w-md">
+          <CardContent className="p-6 text-center">
+            <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Unable to Load Report</h2>
+            <p className="text-zinc-400 mb-4">
+              {error || 'No assessment data found. Please complete MCQ and Resume analysis first.'}
+            </p>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={() => navigate('/dashboard')} variant="outline">
+                Go to Dashboard
+              </Button>
+              <Button onClick={() => navigate('/add-jobs')} className="bg-blue-600 hover:bg-blue-700">
+                Start New Assessment
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Use fetched data or fallback to defaults
+  const resume = clamp(metrics.resumeScore ?? 0)
+  const mcq = clamp(metrics.mcqScore ?? 0)
+  const jobMatch = clamp(metrics.jobMatch ?? 0)
+  const total = clamp(metrics.totalScore ?? 0)
+  const finalImprovements = improvements.length > 0 ? improvements : defaultImprovements
   const scoreTone = total >= 85 ? "text-emerald-400" : total >= 70 ? "text-blue-400" : "text-amber-400"
   const fitText = total >= 85 ? "Excellent Fit " : total >= 70 ? "Strong Potential " : "Needs Improvement "
 
@@ -119,20 +246,7 @@ const FinalReport = () => {
               <p className={`text-lg mt-4 font-medium ${scoreTone}`}>{fitText}</p>
             </div>
           </CardContent>
-          <CardFooter className="justify-end gap-2">
-            <Button
-              className="bg-gray-800 text-white hover:bg-gray-700"
-              onClick={() => navigate("/add-jobs/resume-analysis")}
-            >
-              Review Resume
-            </Button>
-            <Button
-              className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90"
-              onClick={() => navigate("/add-jobs/mcq-analysis")}
-            >
-              View MCQ Analytics
-            </Button>
-          </CardFooter>
+    
         </Card>
 
         <Card className="bg-zinc-900">
@@ -171,9 +285,17 @@ const FinalReport = () => {
               <span className="font-semibold text-blue-400">{resume}%</span>
             </div>
             <Progress value={resume} className="mt-3 h-2" />
-            <ul className="mt-3 text-sm text-zinc-400 list-disc pl-5 space-y-1">
-              <li>Improve keyword coverage and quantify outcomes.</li>
-            </ul>
+            <div className="mt-3 text-sm text-zinc-400">
+              {metrics.resumeData ? (
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Keyword Coverage: {metrics.resumeData.keywordAnalysis?.coveragePercentage ?? 0}%</li>
+                  <li>Experience Analysis: {metrics.resumeData.experienceAnalysis?.length ?? 0} roles evaluated</li>
+                  <li>Project Analysis: {metrics.resumeData.projectAnalysis?.length ?? 0} projects reviewed</li>
+                </ul>
+              ) : (
+                <p>No resume analysis data available</p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -190,10 +312,27 @@ const FinalReport = () => {
               <span className="font-semibold text-emerald-400">{mcq}%</span>
             </div>
             <Progress value={mcq} className="mt-3 h-2" />
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded-md px-2 py-0.5 text-xs border border-emerald-500/30 text-emerald-300 bg-emerald-500/10">
-                Strength: Core concepts
-              </span>
+            <div className="mt-3 text-sm text-zinc-400">
+              {metrics.mcqData ? (
+                <div className="space-y-2">
+                  <p>Answered: {metrics.mcqData.correctAnswers}/{metrics.mcqData.totalQuestions} questions correctly</p>
+                  <p>Time taken: {Math.round(metrics.mcqData.timeTaken / 60)} minutes</p>
+                  {metrics.mcqData.topicWisePerformance && metrics.mcqData.topicWisePerformance.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {metrics.mcqData.topicWisePerformance.slice(0, 2).map((topic: any, idx: number) => (
+                        <span 
+                          key={idx}
+                          className="rounded-md px-2 py-0.5 text-xs border border-emerald-500/30 text-emerald-300 bg-emerald-500/10"
+                        >
+                          {topic.topic}: {topic.percentage}%
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p>No MCQ analysis data available</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -210,7 +349,7 @@ const FinalReport = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {improvements.map((imp, idx) => {
+              {finalImprovements.map((imp, idx) => {
                 const sev = imp.severity ?? "medium"
                 const styles = severityStyles[sev]
                 return (
