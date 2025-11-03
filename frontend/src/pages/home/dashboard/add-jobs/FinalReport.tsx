@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Label } from "@/components/ui/label"
 import AppStepper from "@/components/custom/AppStepper"
-import { Award, Target, FileText, ListChecks, AlertTriangle, User } from "lucide-react"
+import { Award, Target, FileText, ListChecks, AlertTriangle, User, Download } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useAuth } from "@clerk/react-router"
 import { finalReportApi } from "@/lib/api"
 import Mloader from "@/components/custom/Mloader"
+import { generateStructuredPDF } from "@/utils/pdfGenerator"
 
 type Improvement = {
   title: string
@@ -105,6 +106,7 @@ const FinalReport = () => {
   const [improvements, setImprovements] = useState<Improvement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -161,6 +163,38 @@ const FinalReport = () => {
     fetchData()
   }, [getToken])
 
+  const handleDownloadPDF = async () => {
+    if (!metrics) return
+
+    try {
+      setIsGeneratingPDF(true)
+      
+      // Prepare data for structured PDF
+      const reportData = {
+        totalScore: metrics.totalScore ?? 0,
+        jobMatch: metrics.jobMatch ?? 0,
+        resumeScore: metrics.resumeScore ?? 0,
+        mcqScore: metrics.mcqScore ?? 0,
+        mcqData: metrics.mcqData,
+        resumeData: metrics.resumeData,
+        improvements: improvements.length > 0 ? improvements : defaultImprovements
+      }
+
+      // Generate filename with current date
+      const currentDate = new Date().toISOString().split('T')[0]
+      const filename = `Mockly_Final_Report_${currentDate}.pdf`
+
+      // Generate structured PDF
+      await generateStructuredPDF(reportData, { filename })
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Failed to generate PDF. Please try again.')
+    } finally {
+      setIsGeneratingPDF(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen w-full bg-zinc-950 text-white p-8 flex items-center justify-center">
@@ -208,6 +242,14 @@ const FinalReport = () => {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-bold">Final Evaluation Metrics</h1>
+        <Button
+          onClick={handleDownloadPDF}
+          disabled={isGeneratingPDF}
+          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+        >
+          <Download className="h-4 w-4 mr-2" />
+          {isGeneratingPDF ? 'Generating PDF...' : 'Download Report'}
+        </Button>
       </div>
 
       {/* Stepper */}
