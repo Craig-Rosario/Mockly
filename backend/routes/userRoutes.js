@@ -1858,4 +1858,144 @@ router.post("/test-mcq-comparison", requireAuth(), async (req, res) => {
     }
 });
 
+// Update user location
+router.put("/update-location", requireAuth(), async (req, res) => {
+    try {
+        const clerkUserId = req.auth.userId;
+        const { location } = req.body;
+        
+        const user = await User.findOneAndUpdate(
+            { clerkId: clerkUserId },
+            { location: location },
+            { new: true }
+        );
+        
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        
+        res.json(user);
+    } catch (error) {
+        console.error("Update location error:", error);
+        res.status(500).json({ error: "Failed to update location" });
+    }
+});
+
+// Delete user resume
+router.delete("/delete-resume", requireAuth(), async (req, res) => {
+    try {
+        const clerkUserId = req.auth.userId;
+        const user = await User.findOne({ clerkId: clerkUserId });
+        
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        
+        if (user.resume?.fileUrl) {
+            try {
+                await deleteResumeFile(user.resume.fileUrl);
+            } catch (deleteError) {
+                console.error("Error deleting file:", deleteError);
+                // Continue with database update even if file deletion fails
+            }
+        }
+        
+        user.resume = undefined;
+        await user.save();
+        
+        res.json(user);
+    } catch (error) {
+        console.error("Delete resume error:", error);
+        res.status(500).json({ error: "Failed to delete resume" });
+    }
+});
+
+// Get user performance analytics
+router.get("/analytics", requireAuth(), async (req, res) => {
+    try {
+        const clerkUserId = req.auth.userId;
+        const user = await User.findOne({ clerkId: clerkUserId });
+        
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Get all completed resume analyses for this user
+        const resumeAnalyses = await ResumeAnalysis.find({
+            userId: user._id,
+            analysisStatus: 'completed'
+        });
+
+        // Calculate resume performance metrics
+        let totalMatchScore = 0;
+        let totalKeywordCoverage = 0;
+        let resumeAnalysisCount = resumeAnalyses.length;
+
+        resumeAnalyses.forEach(analysis => {
+            if (analysis.analysisResult?.matchScore) {
+                totalMatchScore += analysis.analysisResult.matchScore;
+            }
+            if (analysis.analysisResult?.keywordAnalysis?.coveragePercentage) {
+                totalKeywordCoverage += analysis.analysisResult.keywordAnalysis.coveragePercentage;
+            }
+        });
+
+        const avgResumeScore = resumeAnalysisCount > 0 ? Math.round(totalMatchScore / resumeAnalysisCount) : 0;
+        const avgKeywordCoverage = resumeAnalysisCount > 0 ? Math.round(totalKeywordCoverage / resumeAnalysisCount) : 0;
+
+        // Get all completed MCQs for this user
+        const completedMCQs = await MCQ.find({
+            userId: user._id,
+            mcqStatus: 'completed',
+            'results.completedAt': { $exists: true }
+        });
+
+        // Calculate MCQ performance metrics
+        let totalMCQScore = 0;
+        let totalTimeTaken = 0;
+        let totalQuestions = 0;
+        let totalCorrectAnswers = 0;
+        const mcqCount = completedMCQs.length;
+
+        completedMCQs.forEach(mcq => {
+            if (mcq.results?.score !== undefined) {
+                totalMCQScore += mcq.results.score;
+            }
+            if (mcq.results?.timeTaken) {
+                totalTimeTaken += mcq.results.timeTaken;
+            }
+            if (mcq.results?.totalQuestions) {
+                totalQuestions += mcq.results.totalQuestions;
+            }
+            if (mcq.results?.correctAnswers) {
+                totalCorrectAnswers += mcq.results.correctAnswers;
+            }
+        });
+
+        const mcqSuccessRate = totalQuestions > 0 ? Math.round((totalCorrectAnswers / totalQuestions) * 100) : 0;
+        const avgMCQTime = mcqCount > 0 ? Math.round(totalTimeTaken / mcqCount) : 0; // in seconds
+        const avgMCQTimeInMinutes = Math.round(avgMCQTime / 60); // convert to minutes
+
+        res.json({
+            resumePerformance: {
+                overallScore: avgResumeScore,
+                keywordCoverage: avgKeywordCoverage,
+                totalAnalyses: resumeAnalysisCount
+            },
+            mcqPerformance: {
+                totalMCQsTaken: mcqCount,
+                successRate: mcqSuccessRate,
+                avgTimePerMCQ: avgMCQTime, // in seconds
+                avgTimePerMCQMinutes: avgMCQTimeInMinutes, // in minutes
+                totalQuestionsAnswered: totalQuestions,
+                totalCorrectAnswers: totalCorrectAnswers
+            }
+        });
+
+    } catch (error) {
+        console.error("Analytics error:", error);
+        res.status(500).json({ error: "Failed to fetch analytics data" });
+    }
+});
+
 export default router;

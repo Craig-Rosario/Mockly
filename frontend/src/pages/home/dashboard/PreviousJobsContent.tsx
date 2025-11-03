@@ -12,10 +12,12 @@ import {
     Target,
     CheckCircle,
     X,
+    Download,
 } from "lucide-react"
 import { useAuth } from "@clerk/clerk-react"
 import { useEffect, useState } from "react"
-import { jobApplicationApi } from "@/lib/api"
+import { jobApplicationApi, finalReportApi } from "@/lib/api"
+import { generateStructuredPDF } from "@/utils/pdfGenerator"
 
 interface User {
     _id: string;
@@ -58,6 +60,7 @@ const PreviousJobsContent = () => {
     const [selectedApplication, setSelectedApplication] = useState<JobApplication | null>(null);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [detailsLoading, setDetailsLoading] = useState(false);
+    const [downloadingReport, setDownloadingReport] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -155,6 +158,50 @@ const PreviousJobsContent = () => {
             day: 'numeric', 
             year: 'numeric' 
         });
+    };
+
+    const downloadFinalReport = async (applicationId: string, jobTitle: string, company: string) => {
+        try {
+            setDownloadingReport(true);
+            const token = await getToken();
+            
+            // Fetch the complete final report data
+            const response = await finalReportApi.getFinalReport(applicationId, token || undefined);
+            console.log('Final report API response:', response);
+            
+            if (!response || !response.report) {
+                alert('No final report available for this application.');
+                return;
+            }
+
+            const finalReportData = response.report;
+            console.log('Final report data:', finalReportData);
+
+            // Prepare data for PDF generation
+            const reportData = {
+                jobTitle,
+                company,
+                totalScore: finalReportData.metrics?.totalScore || 0,
+                jobMatch: finalReportData.metrics?.jobMatch || 0,
+                resumeScore: finalReportData.metrics?.resumeScore || 0,
+                mcqScore: finalReportData.metrics?.mcqScore || 0,
+                mcqData: finalReportData.mcqData || {},
+                resumeData: finalReportData.resumeData || {},
+                improvements: finalReportData.improvements || [],
+            };
+
+            console.log('Report data for PDF:', reportData);
+
+            // Generate and download PDF
+            const filename = `${company}-${jobTitle}-Final-Report.pdf`.replace(/[^a-zA-Z0-9.-]/g, '_');
+            await generateStructuredPDF(reportData, { filename });
+
+        } catch (error) {
+            console.error('Error downloading final report:', error);
+            alert('Failed to download final report. Please try again.');
+        } finally {
+            setDownloadingReport(false);
+        }
     };
 
     if (loading) {
@@ -321,7 +368,23 @@ const PreviousJobsContent = () => {
                             )}
                         </div>
                         
-                        <div className="flex justify-end p-6 border-t border-gray-700">
+                        <div className="flex justify-between items-center p-6 border-t border-gray-700">
+                            <div>
+                                {selectedApplication?.finalReport && (
+                                    <Button
+                                        onClick={() => downloadFinalReport(
+                                            selectedApplication._id,
+                                            selectedApplication.jobTitle,
+                                            selectedApplication.company
+                                        )}
+                                        disabled={downloadingReport}
+                                        className="bg-green-600 hover:bg-green-700 text-white mr-3"
+                                    >
+                                        <Download className="w-4 h-4 mr-2" />
+                                        {downloadingReport ? 'Generating...' : 'Download Report'}
+                                    </Button>
+                                )}
+                            </div>
                             <Button
                                 onClick={() => setShowDetailsModal(false)}
                                 className="bg-blue-600 hover:bg-blue-700 text-white"

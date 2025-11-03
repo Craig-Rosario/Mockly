@@ -22,10 +22,9 @@ import {
     Calendar,
     Star,
     Award,
-    MapPin,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { useAuth } from "@clerk/clerk-react"
+import { useAuth, useUser } from "@clerk/clerk-react"
 import { useEffect, useState } from "react"
 import { jobApplicationApi } from "@/lib/api"
 
@@ -63,16 +62,31 @@ interface JobApplication {
 }
 
 const DashboardContent: React.FC = () => {
-    const { getToken } = useAuth();
+    const { getToken, isSignedIn } = useAuth();
+    const { user: clerkUser } = useUser();
     const [user, setUser] = useState<User | null>(null);
     const [jobApplications, setJobApplications] = useState<JobApplication[]>([]);
     const [loading, setLoading] = useState(true);
     const [userLocation, setUserLocation] = useState<string>("");
 
+    // Function to get display name with fallback to Clerk user data
+    const getDisplayName = (): string => {
+        if (user?.name) return user.name
+        if (clerkUser?.firstName && clerkUser?.lastName) {
+            return `${clerkUser.firstName} ${clerkUser.lastName}`
+        }
+        if (clerkUser?.firstName) return clerkUser.firstName
+        if (clerkUser?.username) return clerkUser.username
+        if (clerkUser?.emailAddresses?.[0]?.emailAddress) {
+            return clerkUser.emailAddresses[0].emailAddress.split('@')[0]
+        }
+        return "User"
+    }
+
     useEffect(() => {
         fetchData();
         detectUserLocation();
-    }, [getToken]);
+    }, [getToken, isSignedIn]);
 
     const detectUserLocation = () => {
         if (navigator.geolocation) {
@@ -88,6 +102,7 @@ const DashboardContent: React.FC = () => {
                         if (data.city && data.countryName) {
                             const location = `${data.city}, ${data.countryName}`;
                             setUserLocation(location);
+                            console.log(userLocation);
                         }
                     } catch (error) {
                         console.error("Error getting location:", error);
@@ -110,21 +125,34 @@ const DashboardContent: React.FC = () => {
     };
 
     const fetchData = async () => {
+        if (!isSignedIn) {
+            setLoading(false)
+            return
+        }
+
         try {
             const token = await getToken();
             
-            const userRes = await fetch("/api/users/current-user", {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const userData = await userRes.json();
-            setUser(userData);
+            // Try to fetch user from backend
+            try {
+                const userRes = await fetch("/api/users/current-user", {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (userRes.ok) {
+                    const userData = await userRes.json();
+                    setUser(userData);
+                    if (userData.location) {
+                        setUserLocation(userData.location);
+                    }
+                }
+            } catch (userErr) {
+                console.log("User not found in backend, using Clerk data");
+            }
 
+            // Fetch job applications
             const applications = await jobApplicationApi.getAllApplications(token || undefined);
             setJobApplications(applications);
 
-            if (userData.location) {
-                setUserLocation(userData.location);
-            }
         } catch (err) {
             console.log("Cannot fetch data:", err);
         } finally {
@@ -311,45 +339,11 @@ const DashboardContent: React.FC = () => {
         <div className="flex-1 p-6 bg-black text-white overflow-auto">
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    {user ? (
-                        <h2 className="text-3xl font-bold bg-clip-text text-white">
-                            Hi {user.name}
-                        </h2>
-                    ) : (
-                        <h2 className="text-3xl font-bold bg-clip-text text-white">Hi User</h2>
-                    )}
+                    <h2 className="text-3xl font-bold bg-clip-text text-white">
+                        Hi {loading ? "Loading..." : getDisplayName()}
+                    </h2>
                 </div>
             </div>
-
-            <Card className="mb-6">
-                <CardHeader>
-                    <CardTitle className="flex items-center text-lg text-white">
-                        <MapPin className="w-5 h-5 mr-2 text-cyan-400" />
-                        User Overview
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-start space-x-8 w-full">
-                        <div className="w-24 h-24 bg-gray-600 rounded-full flex items-center justify-center text-3xl font-bold text-white flex-shrink-0">
-                            {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
-                        </div>
-                        <div className="flex-1">
-                            <div className="pr-8">
-                                <h4 className="text-2xl font-semibold text-white mb-1">
-                                    {user?.name || "Mockly Doe"}
-                                </h4>
-                                <p className="text-gray-300 mb-1 flex items-center">
-                                    <MapPin className="w-4 h-4 mr-2 text-red-400" />
-                                    {userLocation || "Detecting location..."}
-                                </p>
-                                <p className="text-gray-300 mb-1">
-                                    Email: {user?.email || "mockly.doe@email.com"}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <Card className="text-center">
@@ -518,7 +512,7 @@ const DashboardContent: React.FC = () => {
                 <CardContent>
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                         <div className="lg:col-span-2 space-y-6">
-                            <div className="bg-gray-800 rounded-lg p-4">
+                            <div className="border-3 rounded-lg p-4">
                                 <h4 className="text-white font-semibold mb-4">Weekly Stats</h4>
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-center">
@@ -541,7 +535,7 @@ const DashboardContent: React.FC = () => {
                             </div>
 
                             {bestMatch && (
-                                <div className="bg-gray-800 rounded-lg p-4">
+                                <div className="border-3 rounded-lg p-4">
                                     <h4 className="text-white font-semibold mb-3 flex items-center">
                                         <Award className="w-4 h-4 mr-2 text-yellow-400" />
                                         Best Match
@@ -557,7 +551,7 @@ const DashboardContent: React.FC = () => {
                             )}
                         </div>
 
-                        <div className="lg:col-span-3 bg-gray-800 rounded-lg p-4 flex flex-col">
+                        <div className="lg:col-span-3 border-3 rounded-lg p-4 flex flex-col">
                             <h4 className="text-white font-semibold mb-4">Daily Activity</h4>
                             <div className="h-64 flex-1">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -578,7 +572,7 @@ const DashboardContent: React.FC = () => {
                                         />
                                         <Bar 
                                             dataKey="applications" 
-                                            fill="#6b7280" 
+                                            fill="#60A5FA" 
                                             radius={[4, 4, 0, 0]}
                                         />
                                     </BarChart>
