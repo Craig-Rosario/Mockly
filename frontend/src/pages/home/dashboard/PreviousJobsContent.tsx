@@ -39,17 +39,6 @@ interface JobApplication {
     applicationDeadline?: string;
     contactPerson?: string;
     notes?: string;
-    mcqResults?: {
-        score: number;
-        totalQuestions: number;
-        correctAnswers: number;
-        attemptedAt?: string;
-    };
-    interviewResults?: {
-        overallScore: number;
-        feedback?: string;
-        conductedAt?: string;
-    };
     finalReport?: {
         metrics: {
             mcqScore: number;
@@ -75,14 +64,17 @@ const PreviousJobsContent = () => {
             try {
                 const token = await getToken();
                 
+                // Fetch current user
                 const userRes = await fetch("/api/users/current-user", {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const userData = await userRes.json();
                 setUser(userData);
 
+                // Fetch job applications
                 const applications = await jobApplicationApi.getAllApplications(token || undefined);
                 setJobApplications(applications);
+
             } catch (err) {
                 console.log("Cannot fetch data:", err);
             } finally {
@@ -98,24 +90,14 @@ const PreviousJobsContent = () => {
             setDetailsLoading(true);
             const token = await getToken();
             
-            const response = await fetch(`/api/job-applications/${applicationId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            // Fetch detailed application data
+            const applicationDetails = await jobApplicationApi.getApplication(applicationId, token || undefined);
             
-            if (response.ok) {
-                const applicationDetails = await response.json();
-                setSelectedApplication(applicationDetails);
-                setShowDetailsModal(true);
-            } else {
-                console.error("Failed to fetch application details");
-                const basicApp = jobApplications.find(app => app._id === applicationId);
-                if (basicApp) {
-                    setSelectedApplication(basicApp);
-                    setShowDetailsModal(true);
-                }
-            }
+            setSelectedApplication(applicationDetails);
+            setShowDetailsModal(true);
         } catch (err) {
             console.log("Cannot fetch application details:", err);
+            // Fallback to basic application data
             const basicApp = jobApplications.find(app => app._id === applicationId);
             if (basicApp) {
                 setSelectedApplication(basicApp);
@@ -126,33 +108,35 @@ const PreviousJobsContent = () => {
         }
     };
 
-    const getMatchPercentage = (application: JobApplication) => {
+    const getMatchPercentage = (application: JobApplication): number => {
+        // Priority 1: Use final report total score if available
         if (application.finalReport?.metrics?.totalScore !== undefined) {
             const totalScore = application.finalReport.metrics.totalScore;
             return Math.max(0, Math.min(100, Math.round(totalScore)));
         }
 
-        let score = 0;
-        let total = 0;
-
-        if (application.mcqResults) {
-            score += (application.mcqResults.correctAnswers / application.mcqResults.totalQuestions) * 50;
-            total += 50;
-        }
-
-        if (application.interviewResults) {
-            score += application.interviewResults.overallScore * 0.5;
-            total += 50;
-        }
-
-        if (total === 0) return Math.floor(Math.random() * 41) + 60; 
-        return Math.round((score / total) * 100);
+        // If no data exists, return 0
+        return 0;
     };
 
     const getMatchLabel = (percentage: number) => {
-        if (percentage >= 85) return { label: "Perfect Match", color: "bg-green-500" };
+        if (percentage >= 90) return { label: "Excellent Match", color: "bg-green-600" };
+        if (percentage >= 80) return { label: "Great Match", color: "bg-green-500" };
         if (percentage >= 70) return { label: "Good Match", color: "bg-blue-500" };
-        return { label: "Poor Match", color: "bg-red-500" };
+        if (percentage >= 60) return { label: "Fair Match", color: "bg-yellow-500" };
+        if (percentage >= 50) return { label: "Average Match", color: "bg-orange-500" };
+        if (percentage > 0) return { label: "Needs Improvement", color: "bg-red-500" };
+        return { label: "Not Started", color: "bg-gray-500" };
+    };
+
+    const getMatchColor = (percentage: number) => {
+        if (percentage >= 90) return "#10b981"; // green-600
+        if (percentage >= 80) return "#22c55e"; // green-500
+        if (percentage >= 70) return "#3b82f6"; // blue-500
+        if (percentage >= 60) return "#eab308"; // yellow-500
+        if (percentage >= 50) return "#f97316"; // orange-500
+        if (percentage > 0) return "#ef4444"; // red-500
+        return "#6b7280"; // gray-500
     };
 
     const getStatusColor = (status: string) => {
@@ -277,87 +261,6 @@ const PreviousJobsContent = () => {
                                         </div>
                                     )}
 
-                                    {selectedApplication.mcqResults && (
-                                        <div>
-                                            <h4 className="text-lg font-semibold text-white mb-4">MCQ Test Results</h4>
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                <div className="text-center p-4 bg-gray-800 rounded-lg">
-                                                    <p className="text-2xl font-bold text-white">{selectedApplication.mcqResults.score}%</p>
-                                                    <p className="text-gray-400 text-sm">Score</p>
-                                                </div>
-                                                <div className="text-center p-4 bg-gray-800 rounded-lg">
-                                                    <p className="text-2xl font-bold text-white">{selectedApplication.mcqResults.correctAnswers}</p>
-                                                    <p className="text-gray-400 text-sm">Correct Answers</p>
-                                                </div>
-                                                <div className="text-center p-4 bg-gray-800 rounded-lg">
-                                                    <p className="text-2xl font-bold text-white">{selectedApplication.mcqResults.totalQuestions}</p>
-                                                    <p className="text-gray-400 text-sm">Total Questions</p>
-                                                </div>
-                                                <div className="text-center p-4 bg-gray-800 rounded-lg">
-                                                    <p className="text-2xl font-bold text-white">
-                                                        {Math.round((selectedApplication.mcqResults.correctAnswers / selectedApplication.mcqResults.totalQuestions) * 100)}%
-                                                    </p>
-                                                    <p className="text-gray-400 text-sm">Accuracy</p>
-                                                </div>
-                                            </div>
-                                            {selectedApplication.mcqResults.attemptedAt && (
-                                                <p className="text-gray-400 text-sm mt-2">
-                                                    Attempted on: {formatDate(selectedApplication.mcqResults.attemptedAt)}
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {selectedApplication.interviewResults && (
-                                        <div>
-                                            <h4 className="text-lg font-semibold text-white mb-4">Interview Results</h4>
-                                            <div className="space-y-3">
-                                                <div className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-                                                    <div>
-                                                        <p className="text-gray-400 text-sm">Overall Score</p>
-                                                        <p className="text-2xl font-bold text-white">{selectedApplication.interviewResults.overallScore}/10</p>
-                                                    </div>
-                                                    <div className="w-20 h-20">
-                                                        <ResponsiveContainer width="100%" height="100%">
-                                                            <PieChart>
-                                                                <Pie
-                                                                    data={[
-                                                                        { name: "Score", value: selectedApplication.interviewResults.overallScore * 10 },
-                                                                        { name: "Remaining", value: 100 - (selectedApplication.interviewResults.overallScore * 10) },
-                                                                    ]}
-                                                                    cx="50%"
-                                                                    cy="50%"
-                                                                    innerRadius={20}
-                                                                    outerRadius={30}
-                                                                    startAngle={90}
-                                                                    endAngle={450}
-                                                                    dataKey="value"
-                                                                    stroke="none"
-                                                                >
-                                                                    <Cell fill="#3b82f6" />
-                                                                    <Cell fill="rgba(255,255,255,0.1)" />
-                                                                </Pie>
-                                                            </PieChart>
-                                                        </ResponsiveContainer>
-                                                    </div>
-                                                </div>
-                                                {selectedApplication.interviewResults.feedback && (
-                                                    <div>
-                                                        <p className="text-gray-400 text-sm">Feedback</p>
-                                                        <p className="text-white text-sm mt-1 bg-gray-800 p-3 rounded-lg">
-                                                            {selectedApplication.interviewResults.feedback}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                                {selectedApplication.interviewResults.conductedAt && (
-                                                    <p className="text-gray-400 text-sm">
-                                                        Conducted on: {formatDate(selectedApplication.interviewResults.conductedAt)}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-
                                     {selectedApplication.finalReport && (
                                         <div>
                                             <h4 className="text-lg font-semibold text-white mb-4">Final Analysis Report</h4>
@@ -407,7 +310,7 @@ const PreviousJobsContent = () => {
                                                         dataKey="value"
                                                         stroke="none"
                                                     >
-                                                        <Cell fill={getMatchPercentage(selectedApplication) >= 85 ? "#10b981" : getMatchPercentage(selectedApplication) >= 70 ? "#3b82f6" : "#ef4444"} />
+                                                        <Cell fill={getMatchColor(getMatchPercentage(selectedApplication))} />
                                                         <Cell fill="rgba(255,255,255,0.1)" />
                                                     </Pie>
                                                 </PieChart>
@@ -459,9 +362,9 @@ const PreviousJobsContent = () => {
                             <CheckCircle className="w-6 h-6 text-white" />
                         </div>
                         <div className="text-2xl font-bold text-white">
-                            {jobApplications.filter(app => app.mcqResults).length}
+                            {jobApplications.filter(app => app.finalReport).length}
                         </div>
-                        <p className="text-gray-400">Total MCQ Tests</p>
+                        <p className="text-gray-400">Completed Tests</p>
                     </CardContent>
                 </Card>
 
@@ -473,11 +376,16 @@ const PreviousJobsContent = () => {
                         <div className="text-2xl font-bold text-white">
                             {(() => {
                                 if (jobApplications.length === 0) return '0';
-                                const total = jobApplications.reduce((acc, app) => {
+                                const applicationsWithData = jobApplications.filter(app => 
+                                    getMatchPercentage(app) > 0
+                                );
+                                if (applicationsWithData.length === 0) return '0';
+                                
+                                const total = applicationsWithData.reduce((acc, app) => {
                                     const percentage = getMatchPercentage(app);
                                     return acc + (isNaN(percentage) ? 0 : percentage);
                                 }, 0);
-                                const average = Math.round(total / jobApplications.length);
+                                const average = Math.round(total / applicationsWithData.length);
                                 return isNaN(average) ? '0' : average.toString();
                             })()}%
                         </div>
@@ -497,6 +405,7 @@ const PreviousJobsContent = () => {
                         {jobApplications.map((application, index) => {
                             const matchPercentage = getMatchPercentage(application);
                             const matchInfo = getMatchLabel(matchPercentage);
+                            const matchColor = getMatchColor(matchPercentage);
                             const appliedDate = formatDate(application.appliedOn);
 
                             return (
@@ -534,20 +443,32 @@ const PreviousJobsContent = () => {
                                                                 dataKey="value"
                                                                 stroke="none"
                                                             >
-                                                                <Cell fill={matchPercentage >= 85 ? "#10b981" : matchPercentage >= 70 ? "#3b82f6" : "#ef4444"} />
+                                                                <Cell fill={matchColor} />
                                                                 <Cell fill="rgba(255,255,255,0.1)" />
                                                             </Pie>
                                                         </PieChart>
                                                     </ResponsiveContainer>
                                                     <div className="absolute inset-0 flex items-center justify-center">
-                                                        <span className={`text-xs font-bold ${matchPercentage >= 85 ? "text-green-400" : matchPercentage >= 70 ? "text-blue-400" : "text-red-400"}`}>
+                                                        <span className={`text-xs font-bold ${
+                                                            matchPercentage >= 80 ? "text-green-400" : 
+                                                            matchPercentage >= 70 ? "text-blue-400" : 
+                                                            matchPercentage >= 60 ? "text-yellow-400" : 
+                                                            matchPercentage >= 50 ? "text-orange-400" : 
+                                                            matchPercentage > 0 ? "text-red-400" : "text-gray-400"
+                                                        }`}>
                                                             {matchPercentage}%
                                                         </span>
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <p className="text-gray-400 text-sm">Profile Match</p>
-                                                    <p className={`font-semibold ${matchPercentage >= 85 ? "text-green-400" : matchPercentage >= 70 ? "text-blue-400" : "text-red-400"}`}>
+                                                    <p className={`font-semibold ${
+                                                        matchPercentage >= 80 ? "text-green-400" : 
+                                                        matchPercentage >= 70 ? "text-blue-400" : 
+                                                        matchPercentage >= 60 ? "text-yellow-400" : 
+                                                        matchPercentage >= 50 ? "text-orange-400" : 
+                                                        matchPercentage > 0 ? "text-red-400" : "text-gray-400"
+                                                    }`}>
                                                         {matchPercentage}%
                                                     </p>
                                                 </div>
@@ -577,6 +498,7 @@ const PreviousJobsContent = () => {
                                             const nextApp = jobApplications[index + 1];
                                             const nextMatchPercentage = getMatchPercentage(nextApp);
                                             const nextMatchInfo = getMatchLabel(nextMatchPercentage);
+                                            const nextMatchColor = getMatchColor(nextMatchPercentage);
                                             const nextAppliedDate = formatDate(nextApp.appliedOn);
 
                                             return (
@@ -613,20 +535,32 @@ const PreviousJobsContent = () => {
                                                                             dataKey="value"
                                                                             stroke="none"
                                                                         >
-                                                                            <Cell fill={nextMatchPercentage >= 85 ? "#10b981" : nextMatchPercentage >= 70 ? "#3b82f6" : "#ef4444"} />
+                                                                            <Cell fill={nextMatchColor} />
                                                                             <Cell fill="rgba(255,255,255,0.1)" />
                                                                         </Pie>
                                                                     </PieChart>
                                                                 </ResponsiveContainer>
                                                                 <div className="absolute inset-0 flex items-center justify-center">
-                                                                    <span className={`text-xs font-bold ${nextMatchPercentage >= 85 ? "text-green-400" : nextMatchPercentage >= 70 ? "text-blue-400" : "text-red-400"}`}>
+                                                                    <span className={`text-xs font-bold ${
+                                                                        nextMatchPercentage >= 80 ? "text-green-400" : 
+                                                                        nextMatchPercentage >= 70 ? "text-blue-400" : 
+                                                                        nextMatchPercentage >= 60 ? "text-yellow-400" : 
+                                                                        nextMatchPercentage >= 50 ? "text-orange-400" : 
+                                                                        nextMatchPercentage > 0 ? "text-red-400" : "text-gray-400"
+                                                                    }`}>
                                                                         {nextMatchPercentage}%
                                                                     </span>
                                                                 </div>
                                                             </div>
                                                             <div>
                                                                 <p className="text-gray-400 text-sm">Profile Match</p>
-                                                                <p className={`font-semibold ${nextMatchPercentage >= 85 ? "text-green-400" : nextMatchPercentage >= 70 ? "text-blue-400" : "text-red-400"}`}>
+                                                                <p className={`font-semibold ${
+                                                                    nextMatchPercentage >= 80 ? "text-green-400" : 
+                                                                    nextMatchPercentage >= 70 ? "text-blue-400" : 
+                                                                    nextMatchPercentage >= 60 ? "text-yellow-400" : 
+                                                                    nextMatchPercentage >= 50 ? "text-orange-400" : 
+                                                                    nextMatchPercentage > 0 ? "text-red-400" : "text-gray-400"
+                                                                }`}>
                                                                     {nextMatchPercentage}%
                                                                 </p>
                                                             </div>
