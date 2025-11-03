@@ -1,16 +1,17 @@
 import { useAuth } from '@clerk/react-router';
 
-// API base URL
-const API_BASE_URL = '/api';
+// API base URLs with fallback (deployed first, then local)
+const API_BASE_URLS = [
+  'https://mockly-backend.vercel.app/api',
+  'http://localhost:5000/api',
+];
 
-// Generic API call function
+// Generic API call function with fallback
 export const apiCall = async (
   endpoint: string,
   options: RequestInit = {},
   token?: string
 ) => {
-  const url = `${API_BASE_URL}${endpoint}`;
-  
   const defaultOptions: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
@@ -19,30 +20,50 @@ export const apiCall = async (
     ...options,
   };
 
-  console.log('Making API call:', {
-    url,
-    method: options.method || 'GET',
-    headers: defaultOptions.headers,
-    body: options.body
-  });
+  // Try each base URL until one works
+  for (const baseUrl of API_BASE_URLS) {
+    const url = `${baseUrl}${endpoint}`;
+    
+    try {
+      console.log('Making API call:', {
+        url,
+        method: options.method || 'GET',
+        headers: defaultOptions.headers,
+      });
 
-  const response = await fetch(url, defaultOptions);
+      const response = await fetch(url, defaultOptions);
 
-  console.log('API response:', {
-    status: response.status,
-    statusText: response.statusText,
-    ok: response.ok
-  });
+      console.log('API response:', {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    console.error('API error response:', errorData);
-    throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      if (response.ok) {
+        const result = await response.json();
+        console.log('API success response from:', url);
+        return result;
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`API error from ${url}:`, errorData);
+        
+        // If it's the last URL, throw the error
+        if (baseUrl === API_BASE_URLS[API_BASE_URLS.length - 1]) {
+          throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        }
+        // Otherwise, continue to next URL
+      }
+    } catch (error) {
+      console.error(`Failed to connect to ${url}:`, error);
+      
+      // If it's the last URL, throw the error
+      if (baseUrl === API_BASE_URLS[API_BASE_URLS.length - 1]) {
+        throw error;
+      }
+      // Otherwise, continue to next URL
+    }
   }
-
-  const result = await response.json();
-  console.log('API success response:', result);
-  return result;
 };
 
 // Hook for making authenticated API calls
@@ -67,20 +88,42 @@ export const resumeApi = {
     const formData = new FormData();
     formData.append('resume', file);
     
-    const response = await fetch('/api/users/upload-resume', {
-      method: 'POST',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: formData,
-    });
+    // Try each base URL until one works
+    for (const baseUrl of API_BASE_URLS) {
+      const url = `${baseUrl}/users/upload-resume`;
+      
+      try {
+        console.log(`Trying to upload resume to: ${url}`);
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+          body: formData,
+        });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        if (response.ok) {
+          console.log(`Successfully uploaded resume to: ${url}`);
+          return response.json();
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.error(`Upload error from ${url}:`, errorData);
+          
+          // If it's the last URL, throw the error
+          if (baseUrl === API_BASE_URLS[API_BASE_URLS.length - 1]) {
+            throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to upload to ${url}:`, error);
+        
+        // If it's the last URL, throw the error
+        if (baseUrl === API_BASE_URLS[API_BASE_URLS.length - 1]) {
+          throw error;
+        }
+      }
     }
-
-    return response.json();
   },
 
   // Get current resume

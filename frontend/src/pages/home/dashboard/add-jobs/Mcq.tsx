@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import AppStepper from "@/components/custom/AppStepper"
-import { User, FileText, ListChecks, Mic, Timer, Award } from "lucide-react"
+import { User, FileText, ListChecks, Timer, Award } from "lucide-react"
 import MLoader from "@/components/custom/Mloader"
 import { useApiCall } from "@/lib/api"
 

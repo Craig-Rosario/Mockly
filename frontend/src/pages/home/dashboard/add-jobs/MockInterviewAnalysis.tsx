@@ -7,7 +7,6 @@ import {
   User,
   FileText,
   ListChecks,
-  Mic,
   AlertTriangle,
   Award,
   Zap,

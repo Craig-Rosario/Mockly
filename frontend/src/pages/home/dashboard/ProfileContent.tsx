@@ -9,14 +9,10 @@ import { Progress } from "@/components/ui/progress"
 import {
   User,
   FileText,
-  Target,
   Upload,
-  Settings,
   BarChart3,
   Clock,
   CheckCircle,
-  Download,
-  Trash2,
   Eye,
   MapPin,
 } from "lucide-react"
@@ -199,62 +195,62 @@ export default function ProfileContent() {
     }
   }
 
-  const handleDownloadResume = async () => {
-    if (!user?.resume?.fileUrl) return
+  // const handleDownloadResume = async () => {
+  //   if (!user?.resume?.fileUrl) return
 
-    try {
-      const token = await getToken()
-      const response = await fetch(user.resume.fileUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
+  //   try {
+  //     const token = await getToken()
+  //     const response = await fetch(user.resume.fileUrl, {
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //       },
+  //     })
       
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.style.display = 'none'
-        a.href = url
-        a.download = user.resume.fileName
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-      }
-    } catch (err) {
-      console.error('Error downloading resume:', err)
-      alert('Failed to download resume. Please try again.')
-    }
-  }
+  //     if (response.ok) {
+  //       const blob = await response.blob()
+  //       const url = window.URL.createObjectURL(blob)
+  //       const a = document.createElement('a')
+  //       a.style.display = 'none'
+  //       a.href = url
+  //       a.download = user.resume.fileName
+  //       document.body.appendChild(a)
+  //       a.click()
+  //       window.URL.revokeObjectURL(url)
+  //       document.body.removeChild(a)
+  //     }
+  //   } catch (err) {
+  //     console.error('Error downloading resume:', err)
+  //     alert('Failed to download resume. Please try again.')
+  //   }
+  // }
 
-  const handleDeleteResume = async () => {
-    if (!user?.resume) return
+  // const handleDeleteResume = async () => {
+  //   if (!user?.resume) return
 
-    if (!confirm('Are you sure you want to delete your resume?')) return
+  //   if (!confirm('Are you sure you want to delete your resume?')) return
 
-    try {
-      const token = await getToken()
-      const response = await fetch('/api/users/delete-resume', {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
+  //   try {
+  //     const token = await getToken()
+  //     const response = await fetch('/api/users/delete-resume', {
+  //       method: 'DELETE',
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //         'Content-Type': 'application/json',
+  //       },
+  //     })
 
-      if (response.ok) {
-        const updatedUser = await response.json()
-        setUser(updatedUser)
-        alert('Resume deleted successfully!')
-      } else {
-        throw new Error('Failed to delete resume')
-      }
-    } catch (err) {
-      console.error('Error deleting resume:', err)
-      alert('Failed to delete resume. Please try again.')
-    }
-  }
+  //     if (response.ok) {
+  //       const updatedUser = await response.json()
+  //       setUser(updatedUser)
+  //       alert('Resume deleted successfully!')
+  //     } else {
+  //       throw new Error('Failed to delete resume')
+  //     }
+  //   } catch (err) {
+  //     console.error('Error deleting resume:', err)
+  //     alert('Failed to delete resume. Please try again.')
+  //   }
+  // }
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes'

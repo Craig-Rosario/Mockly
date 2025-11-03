@@ -40,16 +40,34 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      try {
-        const token = await getToken()
-        const res = await fetch("http://localhost:5000/api/current-user", {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        const data = await res.json()
-        setUser(data)
-      } catch (err) {
-        console.log("Cannot fetch user:", err)
+      const token = await getToken()
+      
+      // Try deployed backend first, fallback to local
+      const endpoints = [
+        "https://mockly-backend.vercel.app/api/users/current-user",
+        "http://localhost:5000/api/users/current-user",
+      ]
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying to fetch user from: ${endpoint}`)
+          const res = await fetch(endpoint, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          
+          if (res.ok) {
+            const data = await res.json()
+            setUser(data)
+            console.log(`Successfully fetched user from: ${endpoint}`)
+            return // Exit on success
+          }
+        } catch (err) {
+          console.log(`Failed to fetch from ${endpoint}:`, err)
+          // Continue to next endpoint
+        }
       }
+      
+      console.log("All endpoints failed")
     }
     fetchUser()
   }, [getToken])

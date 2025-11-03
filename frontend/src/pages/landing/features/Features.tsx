@@ -1,6 +1,6 @@
 "use client";
 
-import { File, CircleCheck, User, ChartColumnIncreasing } from "lucide-react";
+import { File, CircleCheck, ChartColumnIncreasing } from "lucide-react";
 import {
   Card,
   CardContent,

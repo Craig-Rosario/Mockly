@@ -18,15 +18,33 @@ const initializeDB = async () => {
   }
 };
 
-// CORS configuration
+// CORS configuration with dynamic origin checking
 app.use(cors({
-  origin: [
-    'https://mockly-frontend.vercel.app',
-    'https://mockly-six.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'https://*.vercel.app'
-  ],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+    
+    // Define allowed origins
+    const allowedOrigins = [
+      'https://mockly-frontend.vercel.app',
+      'https://mockly-six.vercel.app',
+      'http://localhost:5173',
+      'http://localhost:3000'
+    ];
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Check if origin matches Vercel app pattern
+    if (origin.match(/^https:\/\/.*\.vercel\.app$/)) {
+      return callback(null, true);
+    }
+    
+    // Reject other origins
+    callback(new Error(`CORS policy violation: Origin ${origin} not allowed`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
