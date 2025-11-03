@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { User, FileText, ListChecks, Mic,Award } from "lucide-react"
+import { User, FileText, ListChecks,Award } from "lucide-react"
 import AppStepper from "@/components/custom/AppStepper"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -12,7 +12,7 @@ import { useState } from "react"
 import MLoader from "@/components/custom/Mloader"
 import { useJobApplication } from "@/contexts/JobApplicationContext"
 import { useAuth } from "@clerk/react-router"
-import { jobApplicationApi, resumeAnalysisApi } from "@/lib/api"
+import { jobApplicationApi } from "@/lib/api"
 
 const JobDetails = () => {
   const navigate = useNavigate()

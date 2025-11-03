@@ -7,7 +7,6 @@ import {
   User,
   FileText,
   ListChecks,
-  Mic,
   AlertTriangle,
   Award,
   CheckCircle2,
@@ -74,7 +73,7 @@ const McqAnalysis = () => {
   const [error, setError] = useState<string | null>(null);
   const [showAllQuestions, setShowAllQuestions] = useState(false);
   
-  const [openRetakeDialog, setOpenRetakeDialog] = useState(false);
+  // const [openRetakeDialog, setOpenRetakeDialog] = useState(false);
   const [openMockInterviewDialog, setOpenMockInterviewDialog] = useState(false);
 
   const count = useMotionValue(0);
@@ -284,14 +283,14 @@ const McqAnalysis = () => {
     processedResults.reduce((sum, r) => sum + (r.timeSpentSec || 0), 0) / total
   );
 
-  const incorrect = processedResults.filter((r) => !r.correct);
+  // const incorrect = processedResults.filter((r) => !r.correct);
   const topics = Object.entries(topicStats);
 
-  const MAX_TIME = 120;
-  const timePct = Math.min(
-    Math.round((avgTimeSec / MAX_TIME) * 100),
-    100
-  );
+  // const MAX_TIME = 120;
+  // const timePct = Math.min(
+  //   Math.round((avgTimeSec / MAX_TIME) * 100),
+  //   100
+  // );
 
   return (
     <div className="min-h-screen w-full bg-zinc-950 text-white p-8">

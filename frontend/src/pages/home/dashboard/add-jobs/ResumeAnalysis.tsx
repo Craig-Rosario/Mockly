@@ -11,7 +11,6 @@ import {
   User,
   FileText,
   ListChecks,
-  Mic,
   CheckCircle2,
   XCircle,
   Lightbulb,

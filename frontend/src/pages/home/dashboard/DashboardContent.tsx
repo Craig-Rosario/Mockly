@@ -148,16 +148,6 @@ const DashboardContent: React.FC = () => {
         return 0;
     };
 
-    const getMatchColor = (percentage: number) => {
-        if (percentage >= 90) return "#10b981";
-        if (percentage >= 80) return "#22c55e";
-        if (percentage >= 70) return "#3b82f6";
-        if (percentage >= 60) return "#eab308";
-        if (percentage >= 50) return "#f97316";
-        if (percentage > 0) return "#ef4444";
-        return "#6b7280";
-    };
-
     const getMatchLabel = (percentage: number) => {
         if (percentage >= 90) return "Excellent Match";
         if (percentage >= 80) return "Great Match";
