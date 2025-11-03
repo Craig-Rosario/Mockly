@@ -10,6 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 connectDB();
+
 app.use(cors());
 app.use(express.json());
 app.use(clerkMiddleware());
@@ -19,7 +20,7 @@ app.use("/api/files", fileRoutes);
 
 app.get("/api/protected", requireAuth(), async (req, res) => {
   try {
-    const { userId } = getAuth(req); 
+    const { userId } = getAuth(req);
     res.json({ message: "✅ Authenticated route access granted!", userId });
   } catch (error) {
     console.error(error);
@@ -31,6 +32,10 @@ app.get("/", (req, res) => {
   res.send("✅ Backend running and Clerk connected!");
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+export default app;
+
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running locally on http://localhost:${PORT}`);
+  });
+}
