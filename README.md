@@ -20,8 +20,6 @@ Mockly - AI-Powered Job Application Assistant
 - [🛠️ Tech Stack](#️-tech-stack)
 - [🔧 API Endpoints](#-api-endpoints)
 - [📈 Usage Guide](#-usage-guide)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
 
 ---
 
@@ -198,12 +196,17 @@ VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 # API Configuration
 VITE_API_BASE_URL=http://localhost:5000/api
 ```
+#### Gemini `.env`:
+```env
+# Google Gemini AI
+GEMINI_API_KEY=your_gemini_api_key
+```
 
 ### Installation Steps
 
 #### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/mockly.git
+git clone https://github.com/Craig-Rosario/mockly.git
 cd mockly
 ```
 
@@ -217,45 +220,16 @@ npm start
 
 #### 3. Frontend Setup
 ```bash
-cd ../frontend
+cd frontend
 npm install
 npm run dev
 # Application will run on http://localhost:5173
 ```
 
-#### 4. Database Setup
-```bash
-# If using local MongoDB
-mongod --dbpath /path/to/your/database
-
-# Create database and collections (automatic on first run)
-```
-
-#### 5. Verify Installation
+#### 4. Verify Installation
 - Navigate to `http://localhost:5173`
 - Register a new account
 - Test the complete flow by creating a job application
-
-### Additional Setup Options
-
-#### Using Docker (Optional)
-```bash
-# Build and run with Docker Compose
-docker-compose up --build
-
-# Or run individual services
-docker build -t mockly-backend ./backend
-docker build -t mockly-frontend ./frontend
-```
-
-#### Development Mode
-```bash
-# Backend with nodemon
-cd backend && npm run dev
-
-# Frontend with hot reload
-cd frontend && npm run dev
-```
 
 ---
 
@@ -346,35 +320,6 @@ Mockly/
 - **Skill Assessment**: Identify strengths and areas for improvement
 - **Industry Insights**: Understand market requirements for different roles
 
-### For Recruiters & HR Teams
-
-#### 🔍 **Efficient Screening**
-- **Automated Analysis**: Quick assessment of candidate-job fit
-- **Standardized Evaluation**: Consistent criteria across all applications
-- **Data-Driven Decisions**: Objective scoring and analytics
-
-#### 📊 **Enhanced Analytics**
-- **Candidate Insights**: Detailed breakdown of skills and experience
-- **Hiring Trends**: Track successful candidate profiles
-- **Process Optimization**: Improve job descriptions based on analysis results
-
-### Technical Advantages
-
-#### 🔒 **Security & Privacy**
-- **Secure Authentication**: Enterprise-grade security with Clerk
-- **Data Protection**: Encrypted storage and transmission
-- **Privacy Compliance**: GDPR-compliant data handling
-
-#### 🚀 **Scalability**
-- **Cloud-Ready Architecture**: Easy deployment and scaling
-- **Microservices Design**: Modular and maintainable codebase
-- **Performance Optimized**: Fast processing with efficient algorithms
-
-#### 🔄 **Integration Capabilities**
-- **API-First Design**: Easy integration with existing HR systems
-- **Webhook Support**: Real-time notifications and updates
-- **Export Options**: Data export in multiple formats
-
 ---
 
 ## 🛠️ Tech Stack
@@ -409,8 +354,6 @@ Mockly/
 
 | Tool | Purpose |
 |------|---------|
-| **ESLint** | Code Quality |
-| **Prettier** | Code Formatting |
 | **Nodemon** | Development Server |
 | **Git** | Version Control |
 | **VS Code** | IDE |
@@ -429,39 +372,33 @@ Mockly/
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| `GET` | `/api/users/current-user` | Get current user details | ✅ |
-| `POST` | `/api/users/job-application` | Create new job application | ✅ |
-| `GET` | `/api/users/job-applications` | Get all user applications | ✅ |
-| `GET` | `/api/users/debug-applications` | Debug application data | ✅ |
+| `GET` | `/api/users/current-user` | Get current user details | Yes |
+| `POST` | `/api/users/job-application` | Create new job application | Yes |
+| `GET` | `/api/users/job-applications` | Get all user applications | Yes |
+| `GET` | `/api/users/debug-applications` | Debug application data | Yes |
 
 ### Resume Analysis
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| `POST` | `/api/users/analyze-resume/:applicationId` | Trigger resume analysis | ✅ |
-| `GET` | `/api/users/resume-analysis/:applicationId` | Get analysis results | ✅ |
+| `POST` | `/api/users/analyze-resume/:applicationId` | Trigger resume analysis | Yes |
+| `GET` | `/api/users/resume-analysis/:applicationId` | Get analysis results | Yes |
 
 ### MCQ System
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| `GET` | `/api/users/job-application/:applicationId/mcqs` | Get/Generate MCQs | ✅ |
-| `POST` | `/api/users/job-application/:applicationId/mcq-results` | Submit MCQ results | ✅ |
+| `GET` | `/api/users/job-application/:applicationId/mcqs` | Get/Generate MCQs | Yes |
+| `POST` | `/api/users/job-application/:applicationId/mcq-results` | Submit MCQ results | Yes |
 
 ### File Management
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| `POST` | `/api/files/upload-resume` | Upload resume file | ✅ |
-| `GET` | `/api/files/resume/:filename` | Download resume file | ✅ |
-| `DELETE` | `/api/files/resume/:filename` | Delete resume file | ✅ |
+| `POST` | `/api/files/upload-resume` | Upload resume file | Yes |
+| `GET` | `/api/files/resume/:filename` | Download resume file | Yes |
+| `DELETE` | `/api/files/resume/:filename` | Delete resume file | Yes |
 
-### Health Check
-
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| `GET` | `/` | Server health status | ❌ |
-| `GET` | `/api/protected` | Test authentication | ✅ |
 
 ---
 
@@ -509,170 +446,6 @@ http://localhost:5173
 - **Ranking**: Fit level (Excellent/Good/Needs Improvement)
 - **Recommendations**: Specific improvement suggestions
 
-### Advanced Features
-
-#### Custom Job Tracking
-```typescript
-// Track multiple applications
-const applications = await jobApplicationApi.getAllApplications(token);
-
-// Filter by status
-const activeApplications = applications.filter(app => 
-  app.status === 'applied' || app.status === 'interview'
-);
-```
-
-#### Performance Analytics
-```typescript
-// Get performance trends
-const performanceData = applications.map(app => ({
-  date: app.appliedOn,
-  score: app.finalReport?.metrics?.totalScore || 0
-}));
-```
-
-#### Export Functionality
-```typescript
-// Export application data
-const exportData = {
-  user: userData,
-  applications: applications,
-  analytics: performanceAnalytics
-};
-```
-
 ---
 
-## 🤝 Contributing
 
-We welcome contributions to Mockly! Here's how you can help:
-
-### Development Workflow
-
-#### 1. **Fork & Clone**
-```bash
-git clone https://github.com/your-username/mockly.git
-cd mockly
-```
-
-#### 2. **Create Feature Branch**
-```bash
-git checkout -b feature/your-feature-name
-```
-
-#### 3. **Development Setup**
-```bash
-# Install dependencies
-cd backend && npm install
-cd ../frontend && npm install
-
-# Set up environment variables
-cp .env.example .env
-
-# Start development servers
-npm run dev
-```
-
-#### 4. **Code Standards**
-- Follow TypeScript best practices
-- Use ESLint and Prettier configurations
-- Write unit tests for new features
-- Update documentation
-
-#### 5. **Submit Pull Request**
-```bash
-git add .
-git commit -m "feat: add new feature"
-git push origin feature/your-feature-name
-```
-
-### Contribution Areas
-
-#### 🐛 **Bug Fixes**
-- Report bugs with detailed reproduction steps
-- Fix existing issues from the issue tracker
-- Improve error handling and user experience
-
-#### ✨ **New Features**
-- Enhanced AI analysis capabilities
-- Additional assessment types
-- Integration with job boards
-- Mobile application development
-
-#### 📚 **Documentation**
-- API documentation improvements
-- Tutorial creation
-- Code examples and guides
-- Internationalization
-
-#### 🧪 **Testing**
-- Unit test coverage improvement
-- Integration testing
-- Performance testing
-- Security testing
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
-### License Summary
-
-```
-MIT License
-
-Copyright (c) 2024 Mockly
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-```
-
----
-
-## 🎉 Acknowledgments
-
-- **Google Gemini AI** for advanced language processing capabilities
-- **Clerk** for secure authentication infrastructure
-- **Shadcn/ui** for beautiful component library
-- **MongoDB** for flexible document storage
-- **React & TypeScript** communities for excellent tooling
-
----
-
-## 📞 Support
-
-### Getting Help
-
-- **Documentation**: Check this README and inline code comments
-- **Issues**: Report bugs and request features on GitHub Issues
-- **Discussions**: Join community discussions for questions and ideas
-
-### Contact Information
-
-- **Project Repository**: [GitHub Repository Link]
-- **Issue Tracker**: [GitHub Issues Link]
-- **Discussions**: [GitHub Discussions Link]
-
----
-
-<p align="center">
-  <strong>Built with ❤️ by the Mockly Team</strong>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/github/stars/your-username/mockly?style=social" alt="GitHub Stars" />
-  <img src="https://img.shields.io/github/forks/your-username/mockly?style=social" alt="GitHub Forks" />
-  <img src="https://img.shields.io/github/watchers/your-username/mockly?style=social" alt="GitHub Watchers" />
-</p>
