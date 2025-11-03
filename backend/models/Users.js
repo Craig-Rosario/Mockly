@@ -11,7 +11,7 @@ const JobDetailsSchema = new mongoose.Schema({
   resume: {
     originalName: String,
     fileName: String,
-    filePath: String,
+    fileData: String, // Base64 encoded file data
     fileUrl: String,
     fileSize: Number,
     mimeType: String,
@@ -96,7 +96,7 @@ const UserSchema = new mongoose.Schema({
   resume: {
     originalName: String,
     fileName: String,
-    filePath: String,
+    fileData: String, // Base64 encoded file data
     fileUrl: String,
     fileSize: Number,
     mimeType: String,

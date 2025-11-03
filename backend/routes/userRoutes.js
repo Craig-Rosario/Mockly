@@ -4,11 +4,10 @@ import User from "../models/Users.js";
 import ResumeAnalysis from "../models/ResumeAnalysis.js";
 import MCQ from "../models/MCQ.js";
 import FinalReport from "../models/FinalReport.js";
-import { uploadResume, getResumeUrl, deleteResumeFile } from "../config/fileUpload.js";
+import { uploadResume, generateUniqueFilename, fileToBase64, getResumeUrl, deleteResumeFile } from "../config/fileUpload.js";
 import { extractTextFromPDFWithFallback, isValidPDF } from "../services/pdfExtractor.js";
 import { analyzeResumeWithGemini, generateMCQsWithGemini } from "../services/geminiService.js";
-import path from 'path';
-import fs from 'fs';
+
 
 const router = express.Router();
 
@@ -60,7 +59,20 @@ router.get("/current-user", requireAuth(), async (req, res) => {
         const clerkUserId = req.auth.userId;
         const user = await User.findOne({ clerkId: clerkUserId });
         if (!user) return res.status(404).json({ message: "User not found" });
-        res.json(user);
+        
+        // Remove fileData from response to avoid large payloads
+        const userResponse = user.toObject();
+        if (userResponse.resume && userResponse.resume.fileData) {
+            delete userResponse.resume.fileData;
+        }
+        if (userResponse.resumeHistory) {
+            userResponse.resumeHistory = userResponse.resumeHistory.map(resume => {
+                const { fileData, ...resumeWithoutData } = resume;
+                return resumeWithoutData;
+            });
+        }
+        
+        res.json(userResponse);
     } catch (err) {
         console.error("Fetch error:", err);
         res.status(500).json({ error: "Failed to fetch user" });
@@ -311,24 +323,26 @@ router.post("/upload-resume", requireAuth(), (req, res) => {
             const user = await User.findOne({ clerkId: clerkUserId });
 
             if (!user) {
-                deleteResumeFile(req.file.filename);
                 return res.status(404).json({ message: "User not found" });
             }
 
+
+
+            // Generate unique filename and convert to base64
+            const fileName = generateUniqueFilename(req.file.originalname);
+            const fileData = fileToBase64(req.file.buffer, req.file.mimetype);
+
             const resumeData = {
                 originalName: req.file.originalname,
-                fileName: req.file.filename,
-                filePath: req.file.path,
-                fileUrl: getResumeUrl(req.file.filename),
+                fileName: fileName,
+                fileData: fileData, // Store base64 encoded data
+                fileUrl: getResumeUrl(fileName),
                 fileSize: req.file.size,
                 mimeType: req.file.mimetype,
                 uploadedAt: new Date()
             };
 
-            if (user.resume && user.resume.fileName) {
-                deleteResumeFile(user.resume.fileName);
-            }
-
+            // No need to delete old physical files since we store in database
             user.resume = resumeData;
 
             if (!user.resumeHistory) {
@@ -340,16 +354,17 @@ router.post("/upload-resume", requireAuth(), (req, res) => {
 
             console.log("Resume uploaded successfully for user:", user.email);
 
+            // Remove fileData from response to avoid large payloads
+            const responseResume = { ...resumeData };
+            delete responseResume.fileData;
+
             res.json({
                 message: "Resume uploaded successfully",
-                resume: resumeData
+                resume: responseResume
             });
 
         } catch (error) {
             console.error("Resume upload error:", error);
-            if (req.file) {
-                deleteResumeFile(req.file.filename);
-            }
             res.status(500).json({ error: "Failed to save resume information" });
         }
     });
@@ -387,9 +402,15 @@ router.get("/resume-history", requireAuth(), async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
+        // Remove fileData from response to avoid large payloads
+        const resumeHistoryWithoutData = (user.resumeHistory || []).map(resume => {
+            const { fileData, ...resumeWithoutData } = resume.toObject ? resume.toObject() : resume;
+            return resumeWithoutData;
+        });
+
         res.json({
             message: "Resume history retrieved successfully",
-            resumes: user.resumeHistory || []
+            resumes: resumeHistoryWithoutData
         });
     } catch (err) {
         console.error("Get resume history error:", err);
@@ -448,7 +469,7 @@ router.post("/analyze-resume/:applicationId", requireAuth(), async (req, res) =>
         }
         
         // Check if resume exists
-        if (!application.resume || !application.resume.filePath) {
+        if (!application.resume || !application.resume.fileData) {
             return res.status(400).json({ message: "No resume found for this application" });
         }
         
@@ -505,20 +526,16 @@ router.post("/analyze-resume/:applicationId", requireAuth(), async (req, res) =>
         await resumeAnalysis.save();
         
         try {
-            // Check and extract PDF file
-            const rawPdfPath = application.resume.filePath;
-            const pdfPath = path.resolve(rawPdfPath); // Normalize the path
-            console.log("Raw PDF path:", rawPdfPath);
-            console.log("Normalized PDF path:", pdfPath);
-            console.log("File exists?", fs.existsSync(pdfPath));
+            // Extract PDF content from base64 data
+            console.log("Processing PDF from base64 data...");
             
-            if (!fs.existsSync(pdfPath)) {
-                throw new Error(`Resume file not found at path: ${pdfPath}`);
+            if (!isValidPDF(application.resume.fileData)) {
+                throw new Error("Invalid PDF file format");
             }
             
-            console.log("Extracting text from PDF:", pdfPath);
+            console.log("Extracting text from PDF base64 data...");
             
-            // Extract text from PDF using our service - skip validation for now
+            // Extract text from PDF using our service
             let resumeText;
             
             try {
@@ -526,7 +543,7 @@ router.post("/analyze-resume/:applicationId", requireAuth(), async (req, res) =>
                 
                 // Try to extract text, with fallback to placeholder if extraction fails
                 try {
-                    resumeText = await extractTextFromPDFWithFallback(pdfPath);
+                    resumeText = await extractTextFromPDFWithFallback(application.resume.fileData);
                     console.log("Successfully extracted text from PDF. Length:", resumeText.length);
                     
                     // Log first 200 characters for debugging (without sensitive info)
