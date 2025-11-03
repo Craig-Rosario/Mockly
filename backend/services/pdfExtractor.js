@@ -5,18 +5,31 @@ import PDFParser from 'pdf2json';
 
 /**
  * Extract text content from PDF file using pdf-parse
- * @param {string} filePath - Absolute path to the PDF file
+ * @param {string|Buffer} input - File path or Buffer containing PDF data
  * @returns {Promise<string>} - Extracted text content
  */
-export const extractTextFromPDF = async (filePath) => {
+export const extractTextFromPDF = async (input) => {
   try {
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`PDF file not found: ${filePath}`);
+    let pdfBuffer;
+    
+    // Handle different input types
+    if (Buffer.isBuffer(input)) {
+      pdfBuffer = input;
+    } else if (typeof input === 'string') {
+      // Check if it's a file path or base64 string
+      if (input.startsWith('data:')) {
+        // Base64 data URL
+        const base64Data = input.split(',')[1];
+        pdfBuffer = Buffer.from(base64Data, 'base64');
+      } else if (fs.existsSync(input)) {
+        // File path (fallback for local development)
+        pdfBuffer = fs.readFileSync(input);
+      } else {
+        throw new Error('Invalid input: not a valid file path or base64 string');
+      }
+    } else {
+      throw new Error('Input must be a file path, base64 string, or Buffer');
     }
-
-    // Read the PDF file
-    const pdfBuffer = fs.readFileSync(filePath);
     
     // Extract text using pdf-parse
     const data = await pdfParse(pdfBuffer);
@@ -36,11 +49,11 @@ export const extractTextFromPDF = async (filePath) => {
 };
 
 /**
- * Alternative method using pdf2json (already available in package.json)
- * @param {string} filePath - Absolute path to the PDF file
+ * Alternative method using pdf2json
+ * @param {string|Buffer} input - File path or Buffer containing PDF data
  * @returns {Promise<string>} - Extracted text content
  */
-export const extractTextFromPDFAlternative = (filePath) => {
+export const extractTextFromPDFAlternative = (input) => {
   return new Promise((resolve, reject) => {
     const pdfParser = new PDFParser();
     
@@ -76,26 +89,50 @@ export const extractTextFromPDFAlternative = (filePath) => {
       }
     });
     
-    // Load PDF file
-    pdfParser.loadPDF(filePath);
+    try {
+      let pdfBuffer;
+      
+      // Handle different input types
+      if (Buffer.isBuffer(input)) {
+        pdfBuffer = input;
+      } else if (typeof input === 'string') {
+        if (input.startsWith('data:')) {
+          // Base64 data URL
+          const base64Data = input.split(',')[1];
+          pdfBuffer = Buffer.from(base64Data, 'base64');
+        } else if (fs.existsSync(input)) {
+          // File path (fallback for local development)
+          pdfBuffer = fs.readFileSync(input);
+        } else {
+          throw new Error('Invalid input: not a valid file path or base64 string');
+        }
+      } else {
+        throw new Error('Input must be a file path, base64 string, or Buffer');
+      }
+      
+      // Parse PDF from buffer
+      pdfParser.parseBuffer(pdfBuffer);
+    } catch (error) {
+      reject(new Error(`Failed to load PDF: ${error.message}`));
+    }
   });
 };
 
 /**
  * Extract text with fallback mechanism
- * @param {string} filePath - Absolute path to the PDF file
+ * @param {string|Buffer} input - File path, base64 string, or Buffer containing PDF data
  * @returns {Promise<string>} - Extracted text content
  */
-export const extractTextFromPDFWithFallback = async (filePath) => {
+export const extractTextFromPDFWithFallback = async (input) => {
   try {
     // Try primary method first
-    return await extractTextFromPDF(filePath);
+    return await extractTextFromPDF(input);
   } catch (primaryError) {
     console.warn('Primary PDF extraction failed, trying alternative method:', primaryError.message);
     
     try {
       // Fallback to alternative method
-      return await extractTextFromPDFAlternative(filePath);
+      return await extractTextFromPDFAlternative(input);
     } catch (fallbackError) {
       console.error('Both PDF extraction methods failed:', {
         primary: primaryError.message,
@@ -108,58 +145,77 @@ export const extractTextFromPDFWithFallback = async (filePath) => {
 
 /**
  * Validate PDF file
- * @param {string} filePath - Path to the PDF file
+ * @param {string|Buffer} input - File path, base64 string, or Buffer containing PDF data
  * @returns {boolean} - True if valid PDF
  */
-export const isValidPDF = (filePath) => {
+export const isValidPDF = (input) => {
   try {
-    console.log('Validating PDF file:', filePath);
-    console.log('Working directory:', process.cwd());
+    console.log('Validating PDF input type:', typeof input);
     
-    // Normalize the path for Windows
-    const normalizedPath = path.resolve(filePath);
-    console.log('Normalized path:', normalizedPath);
+    let buffer;
     
-    if (!fs.existsSync(normalizedPath)) {
-      console.log('PDF file does not exist at normalized path:', normalizedPath);
-      // Try original path too
-      if (!fs.existsSync(filePath)) {
-        console.log('PDF file does not exist at original path either:', filePath);
-        return false;
+    // Handle different input types
+    if (Buffer.isBuffer(input)) {
+      buffer = input;
+    } else if (typeof input === 'string') {
+      if (input.startsWith('data:')) {
+        // Base64 data URL
+        try {
+          const base64Data = input.split(',')[1];
+          buffer = Buffer.from(base64Data, 'base64');
+        } catch (error) {
+          console.error('Error parsing base64 data:', error);
+          return false;
+        }
+      } else {
+        // File path (fallback for local development)
+        try {
+          const normalizedPath = path.resolve(input);
+          
+          if (!fs.existsSync(normalizedPath) && !fs.existsSync(input)) {
+            console.log('PDF file does not exist');
+            return false;
+          }
+          
+          const filePath = fs.existsSync(normalizedPath) ? normalizedPath : input;
+          const stats = fs.statSync(filePath);
+          
+          if (stats.size === 0) {
+            console.log('PDF file is empty');
+            return false;
+          }
+          
+          // Check file extension
+          const extension = path.extname(filePath).toLowerCase();
+          if (extension !== '.pdf') {
+            console.log('Invalid file extension, expected .pdf');
+            return false;
+          }
+          
+          buffer = fs.readFileSync(filePath, { start: 0, end: 4 });
+        } catch (error) {
+          console.error('Error reading file:', error);
+          return false;
+        }
       }
-    }
-    
-    const stats = fs.statSync(filePath);
-    console.log('PDF file size:', stats.size, 'bytes');
-    
-    if (stats.size === 0) {
-      console.log('PDF file is empty');
+    } else {
+      console.log('Invalid input type for PDF validation');
       return false;
     }
     
-    // Check file extension
-    const extension = path.extname(filePath).toLowerCase();
-    console.log('File extension:', extension);
-    
-    if (extension !== '.pdf') {
-      console.log('Invalid file extension, expected .pdf');
+    // Check PDF header
+    if (!buffer || buffer.length < 4) {
+      console.log('Insufficient data to validate PDF header');
       return false;
     }
     
-    // Read first few bytes to check PDF header
-    try {
-      const buffer = fs.readFileSync(filePath, { start: 0, end: 4 });
-      const header = buffer.toString('ascii');
-      console.log('PDF header:', header);
-      
-      const isValid = header === '%PDF';
-      console.log('PDF validation result:', isValid);
-      
-      return isValid;
-    } catch (headerError) {
-      console.error('Error reading PDF header:', headerError);
-      return false;
-    }
+    const header = buffer.toString('ascii', 0, 4);
+    console.log('PDF header:', header);
+    
+    const isValid = header === '%PDF';
+    console.log('PDF validation result:', isValid);
+    
+    return isValid;
   } catch (error) {
     console.error('Error validating PDF:', error);
     return false;
