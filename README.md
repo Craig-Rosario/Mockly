@@ -23,7 +23,7 @@ Mockly - AI-Powered Job Application Assistant
 
 ---
 
-## 🎯 What is Mockly?
+## What is Mockly?
 
 **Mockly** is an intelligent job application platform that leverages AI to help job seekers optimize their applications and prepare for interviews. The platform provides comprehensive analysis of resumes against job descriptions, generates customized MCQ tests and delivers detailed performance reports.
 
