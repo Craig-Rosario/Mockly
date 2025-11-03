@@ -1,6 +1,6 @@
-<p align="center">
+
 # 🎯 Mockly - AI-Powered Job Application Assistant
-</p>
+
 
 <p align="center">
   <strong>Transform your job application process with AI-powered resume analysis and skill assessments.</strong>
