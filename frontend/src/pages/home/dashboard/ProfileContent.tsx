@@ -46,10 +46,28 @@ interface UserData {
   }
 }
 
+interface AnalyticsData {
+  resumePerformance: {
+    overallScore: number
+    keywordCoverage: number
+    totalAnalyses: number
+  }
+  mcqPerformance: {
+    totalMCQsTaken: number
+    successRate: number
+    avgTimePerMCQ: number
+    avgTimePerMCQMinutes: number
+    totalQuestionsAnswered: number
+    totalCorrectAnswers: number
+  }
+}
+
 export default function ProfileContent() {
   const { getToken } = useAuth()
   const [user, setUser] = useState<UserData | null>(null)
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [analyticsLoading, setAnalyticsLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [showUploadSection, setShowUploadSection] = useState(false)
@@ -57,6 +75,7 @@ export default function ProfileContent() {
 
   useEffect(() => {
     fetchUserData()
+    fetchAnalytics()
     detectUserLocation()
   }, [getToken])
 
@@ -134,6 +153,24 @@ export default function ProfileContent() {
       console.log("Cannot fetch user:", err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true)
+      const token = await getToken()
+      const res = await fetch("/api/users/analytics", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAnalytics(data)
+      }
+    } catch (err) {
+      console.log("Cannot fetch analytics:", err)
+    } finally {
+      setAnalyticsLoading(false)
     }
   }
 
@@ -499,42 +536,57 @@ export default function ProfileContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-300">Overall Score</span>
-                <span className="text-green-400 font-semibold">
-                  {user?.performance?.resumeScore || 85}%
-                </span>
+            {analyticsLoading ? (
+              <div className="text-center py-6">
+                <p className="text-gray-400">Loading performance data...</p>
               </div>
-              <Progress 
-                value={user?.performance?.resumeScore || 85} 
-                className="[&>div]:bg-green-400" 
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-300">Confidence Level</span>
-                <span className="text-blue-400 font-semibold">
-                  {user?.performance?.confidenceLevel || 78}%
-                </span>
+            ) : analytics?.resumePerformance?.totalAnalyses === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-gray-400">No resume analyses yet</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Upload a resume and apply to jobs to see your performance metrics
+                </p>
               </div>
-              <Progress 
-                value={user?.performance?.confidenceLevel || 78} 
-                className="[&>div]:bg-blue-400" 
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-300">Completion Rate</span>
-                <span className="text-purple-400 font-semibold">
-                  {user?.performance?.completionRate || 92}%
-                </span>
-              </div>
-              <Progress 
-                value={user?.performance?.completionRate || 92} 
-                className="[&>div]:bg-purple-400" 
-              />
-            </div>
+            ) : (
+              <>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-300">Overall Score</span>
+                    <span className="text-green-400 font-semibold">
+                      {analytics?.resumePerformance?.overallScore || 0}%
+                    </span>
+                  </div>
+                  <Progress 
+                    value={analytics?.resumePerformance?.overallScore || 0} 
+                    className="[&>div]:bg-green-400" 
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-300">Keyword Coverage</span>
+                    <span className="text-blue-400 font-semibold">
+                      {analytics?.resumePerformance?.keywordCoverage || 0}%
+                    </span>
+                  </div>
+                  <Progress 
+                    value={analytics?.resumePerformance?.keywordCoverage || 0} 
+                    className="[&>div]:bg-blue-400" 
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-gray-300">Total Analyses</span>
+                    <span className="text-purple-400 font-semibold">
+                      {analytics?.resumePerformance?.totalAnalyses || 0}
+                    </span>
+                  </div>
+                  <Progress 
+                    value={Math.min((analytics?.resumePerformance?.totalAnalyses || 0) * 10, 100)} 
+                    className="[&>div]:bg-purple-400" 
+                  />
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -546,26 +598,50 @@ export default function ProfileContent() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center mb-4">
-              <div className="text-2xl font-bold text-white">
-                {user?.performance?.mcqPerformance || 'Good'}
+            {analyticsLoading ? (
+              <div className="text-center py-6">
+                <p className="text-gray-400">Loading MCQ data...</p>
               </div>
-              <p className="text-gray-400">Performance Level</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-xl font-bold text-pink-400">
-                  {user?.performance?.mcqTestsTaken || 23}
+            ) : (analytics?.mcqPerformance?.totalMCQsTaken ?? 0) === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-gray-400">No MCQs completed yet</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Complete some MCQ tests to see your performance metrics
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="text-center mb-4">
+                  <div className="text-2xl font-bold text-white">
+                    {analytics?.mcqPerformance?.totalMCQsTaken || 0}
+                  </div>
+                  <p className="text-gray-400">MCQs Completed</p>
                 </div>
-                <p className="text-gray-400 text-sm">Test Result</p>
-              </div>
-              <div className="text-center">
-                <div className="text-xl font-bold text-green-400">
-                  {user?.performance?.mcqSuccessRate || 76}%
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-pink-400">
+                      {analytics?.mcqPerformance?.successRate || 0}%
+                    </div>
+                    <p className="text-gray-400 text-sm">Success Rate</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-green-400">
+                      {analytics?.mcqPerformance?.avgTimePerMCQMinutes || 0}m
+                    </div>
+                    <p className="text-gray-400 text-sm">Avg Time</p>
+                  </div>
                 </div>
-                <p className="text-gray-400 text-sm">Success Rate</p>
-              </div>
-            </div>
+                {(analytics?.mcqPerformance?.totalMCQsTaken ?? 0) > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-700">
+                    <div className="text-center">
+                      <div className="text-sm text-gray-400">
+                        {analytics?.mcqPerformance?.totalCorrectAnswers || 0} correct out of {analytics?.mcqPerformance?.totalQuestionsAnswered || 0} questions
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

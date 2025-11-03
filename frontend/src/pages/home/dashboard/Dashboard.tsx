@@ -1,5 +1,5 @@
-import type React from "react"
-import { useEffect, useState } from "react"
+import type React from "react";
+import { useEffect, useState } from "react";
 import {
   Sidebar,
   SidebarProvider,
@@ -11,104 +11,185 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarInset,
-} from "@/components/ui/sidebar"
-
-import DashboardContent from "./DashboardContent"
-import ProfileContent from "./ProfileContent"
-import PreviousJobsContent from "./PreviousJobsContent"
+  useSidebar,
+} from "@/components/ui/sidebar";
 import {
-  LayoutDashboard,
-  User,
-  Briefcase,
-  LogOut,
-} from "lucide-react"
-import { useAuth } from "@clerk/clerk-react"
-import { useNavigate } from "react-router-dom"
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+import DashboardContent from "./DashboardContent";
+import ProfileContent from "./ProfileContent";
+import PreviousJobsContent from "./PreviousJobsContent";
+import { LayoutDashboard, User, Briefcase, LogOut } from "lucide-react";
+import { useAuth, useUser } from "@clerk/clerk-react";
+import { useNavigate } from "react-router-dom";
 
 interface UserData {
-  _id: string
-  name: string
-  email: string
-  clerkId: string
+  _id: string;
+  name: string;
+  email: string;
+  clerkId: string;
 }
 
+// User Avatar Component that uses sidebar state
+const UserAvatar: React.FC<{
+  userLoading: boolean;
+  getDisplayName: () => string;
+  getUserInitials: (name: string) => string;
+}> = ({ userLoading, getDisplayName, getUserInitials }) => {
+  const { state } = useSidebar();
+
+  const avatar = (
+    <div className="flex flex-col items-center">
+      <div
+        className="flex items-center justify-center bg-gradient-to-br from-[#0b4173] to-[#92caff] rounded-full transition-all duration-300 text-white font-semibold cursor-pointer
+        group-data-[state=expanded]:w-14 group-data-[state=expanded]:h-14
+        group-data-[state=collapsed]:w-10 group-data-[state=collapsed]:h-10"
+      >
+        {/* Show User icon when expanded */}
+        <User className="w-7 h-7 text-white hidden group-data-[state=expanded]:block" />
+        {/* Show initials when collapsed */}
+        <span className="text-sm font-semibold text-white hidden group-data-[state=collapsed]:block">
+          {userLoading ? "..." : getUserInitials(getDisplayName())}
+        </span>
+      </div>
+
+      <span className="mt-2 text-gray-300 text-sm font-medium hidden group-data-[state=expanded]:block text-center">
+        {userLoading ? "Loading..." : getDisplayName()}
+      </span>
+    </div>
+  );
+
+  // If collapsed, wrap with tooltip
+  if (state === "collapsed") {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{avatar}</TooltipTrigger>
+        <TooltipContent side="right">
+          <p>{userLoading ? "Loading..." : getDisplayName()}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return avatar;
+};
+
 export const Dashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "profile" | "previous-jobs">("dashboard")
-  const { getToken, signOut } = useAuth()
-  const [user, setUser] = useState<UserData | null>(null)
-  const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "profile" | "previous-jobs"
+  >("dashboard");
+  const { getToken, signOut, isSignedIn } = useAuth();
+  const { user: clerkUser } = useUser();
+  const [user, setUser] = useState<UserData | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
+  const navigate = useNavigate();
+
+  // Function to get user initials from name
+  const getUserInitials = (name: string): string => {
+    if (!name) return "U";
+    const nameParts = name.trim().split(" ");
+    if (nameParts.length >= 2) {
+      return (
+        nameParts[0][0] + nameParts[nameParts.length - 1][0]
+      ).toUpperCase();
+    }
+    return name[0].toUpperCase();
+  };
+
+  // Function to get display name with fallback to Clerk user data
+  const getDisplayName = (): string => {
+    if (user?.name) return user.name;
+    if (clerkUser?.firstName && clerkUser?.lastName) {
+      return `${clerkUser.firstName} ${clerkUser.lastName}`;
+    }
+    if (clerkUser?.firstName) return clerkUser.firstName;
+    if (clerkUser?.username) return clerkUser.username;
+    if (clerkUser?.emailAddresses?.[0]?.emailAddress) {
+      return clerkUser.emailAddresses[0].emailAddress.split("@")[0];
+    }
+    return "User";
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
-      const token = await getToken()
-      
+      if (!isSignedIn) {
+        setUserLoading(false);
+        return;
+      }
+
+      const token = await getToken();
+
       // Try deployed backend first, fallback to local
       const endpoints = [
         "https://mockly-backend.vercel.app/api/users/current-user",
         "http://localhost:5000/api/users/current-user",
-      ]
-      
+      ];
+
       for (const endpoint of endpoints) {
         try {
-          console.log(`Trying to fetch user from: ${endpoint}`)
+          console.log(`Trying to fetch user from: ${endpoint}`);
           const res = await fetch(endpoint, {
             headers: { Authorization: `Bearer ${token}` },
-          })
-          
+          });
+
           if (res.ok) {
-            const data = await res.json()
-            setUser(data)
-            console.log(`Successfully fetched user from: ${endpoint}`)
-            return // Exit on success
+            const data = await res.json();
+            setUser(data);
+            console.log(`Successfully fetched user from: ${endpoint}`);
+            setUserLoading(false);
+            return; // Exit on success
+          } else {
+            console.log("User not found in backend, using Clerk data");
           }
         } catch (err) {
-          console.log(`Failed to fetch from ${endpoint}:`, err)
+          console.log(`Failed to fetch from ${endpoint}:`, err);
           // Continue to next endpoint
         }
       }
-      
-      console.log("All endpoints failed")
-    }
-    fetchUser()
-  }, [getToken])
+
+      console.log("All endpoints failed");
+      setUserLoading(false);
+    };
+
+    fetchUser();
+  }, [getToken, isSignedIn]);
 
   const handleLogout = async () => {
     try {
       // Sign out from Clerk
-      await signOut()
+      await signOut();
       // Redirect to login page
-      navigate("/login")
+      navigate("/login");
     } catch (error) {
-      console.error("Error during logout:", error)
+      console.error("Error during logout:", error);
       // Still redirect to login even if there's an error
-      navigate("/login")
+      navigate("/login");
     }
-  }
+  };
 
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon" className="bg-gray-900 text-gray-200 border-r border-gray-700">
+      <Sidebar
+        collapsible="icon"
+        className="bg-gray-900 text-gray-200 border-r border-gray-700"
+      >
         <SidebarHeader className="p-6 flex flex-col items-center space-y-4">
           <h1 className="text-2xl font-bold text-white bg-clip-text">
-            <span className="hidden group-data-[state=expanded]:block">MOCKLY</span>
-            <span className="block group-data-[state=collapsed]:block group-data-[state=expanded]:hidden">M</span>
-          </h1>
-          <div className="flex flex-col items-center">
-            <div
-              className="flex items-center justify-center bg-gray-700 rounded-full transition-all duration-300
-        group-data-[state=expanded]:w-14 group-data-[state=expanded]:h-14
-        group-data-[state=collapsed]:w-10 group-data-[state=collapsed]:h-10"
-            >
-              <User className="w-7 h-7 text-gray-200 hidden group-data-[state=expanded]:block" />
-              <span className="text-sm font-semibold text-white hidden group-data-[state=collapsed]:block">
-                {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
-              </span>
-            </div>
-
-            <span className="mt-2 text-gray-300 text-sm font-medium hidden group-data-[state=expanded]:block">
-              {user?.name || "User"}
+            <span className="hidden group-data-[state=expanded]:block">
+              MOCKLY
             </span>
-          </div>
+            <span className="block group-data-[state=collapsed]:block group-data-[state=expanded]:hidden">
+              M
+            </span>
+          </h1>
+          <UserAvatar
+            userLoading={userLoading}
+            getDisplayName={getDisplayName}
+            getUserInitials={getUserInitials}
+          />
         </SidebarHeader>
 
         <SidebarContent className="mt-6 pl-2">
@@ -163,7 +244,7 @@ export const Dashboard: React.FC = () => {
         <SidebarFooter className="p-4 mt-auto">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton 
+              <SidebarMenuButton
                 onClick={handleLogout}
                 className="px-5 py-3 text-base rounded-none hover:bg-gray-800 hover:text-white transition-colors"
               >
@@ -178,7 +259,9 @@ export const Dashboard: React.FC = () => {
       <SidebarInset>
         <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-black">
           <SidebarTrigger />
-          <h2 className="text-lg font-semibold text-white capitalize">{activeTab}</h2>
+          <h2 className="text-lg font-semibold text-white capitalize">
+            {activeTab}
+          </h2>
         </div>
 
         <main className="flex-1 bg-black p-6">
@@ -188,7 +271,7 @@ export const Dashboard: React.FC = () => {
         </main>
       </SidebarInset>
     </SidebarProvider>
-  )
-}
+  );
+};
 
-export default Dashboard
+export default Dashboard;
