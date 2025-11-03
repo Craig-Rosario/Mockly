@@ -22,6 +22,7 @@ import {
     Calendar,
     Star,
     Award,
+    MapPin,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@clerk/clerk-react"
@@ -45,14 +46,11 @@ interface JobApplication {
     workMode: string;
     status: string;
     appliedOn: string;
-    mcqResults?: {
-        score: number;
-        totalQuestions: number;
-        correctAnswers: number;
-    };
-    interviewResults?: {
-        overallScore: number;
-    };
+    jobDescription?: string;
+    salary?: string;
+    applicationDeadline?: string;
+    contactPerson?: string;
+    notes?: string;
     finalReport?: {
         metrics: {
             mcqScore: number;
@@ -69,29 +67,70 @@ const DashboardContent: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [jobApplications, setJobApplications] = useState<JobApplication[]>([]);
     const [loading, setLoading] = useState(true);
+    const [userLocation, setUserLocation] = useState<string>("");
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const token = await getToken();
-                
-                const userRes = await fetch("/api/users/current-user", {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                const userData = await userRes.json();
-                setUser(userData);
-
-                const applications = await jobApplicationApi.getAllApplications(token || undefined);
-                setJobApplications(applications);
-            } catch (err) {
-                console.log("Cannot fetch data:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        
         fetchData();
+        detectUserLocation();
     }, [getToken]);
+
+    const detectUserLocation = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    try {
+                        const { latitude, longitude } = position.coords;
+                        const response = await fetch(
+                            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+                        );
+                        const data = await response.json();
+                        
+                        if (data.city && data.countryName) {
+                            const location = `${data.city}, ${data.countryName}`;
+                            setUserLocation(location);
+                        }
+                    } catch (error) {
+                        console.error("Error getting location:", error);
+                        setUserLocation("Location not available");
+                    }
+                },
+                (error) => {
+                    console.error("Geolocation error:", error);
+                    setUserLocation("Location access denied");
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 60000
+                }
+            );
+        } else {
+            setUserLocation("Geolocation not supported");
+        }
+    };
+
+    const fetchData = async () => {
+        try {
+            const token = await getToken();
+            
+            const userRes = await fetch("/api/users/current-user", {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const userData = await userRes.json();
+            setUser(userData);
+
+            const applications = await jobApplicationApi.getAllApplications(token || undefined);
+            setJobApplications(applications);
+
+            if (userData.location) {
+                setUserLocation(userData.location);
+            }
+        } catch (err) {
+            console.log("Cannot fetch data:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const navigate = useNavigate();
     const handleClick = () => {
@@ -99,53 +138,67 @@ const DashboardContent: React.FC = () => {
     }
 
     const totalApplications = jobApplications.length;
-    const totalMcqTests = jobApplications.filter(app => app.mcqResults).length;
+    const totalCompletedTests = jobApplications.filter(app => app.finalReport).length;
 
-    const getMatchPercentage = (application: JobApplication) => {
+    const getMatchPercentage = (application: JobApplication): number => {
         if (application.finalReport?.metrics?.totalScore !== undefined) {
             const totalScore = application.finalReport.metrics.totalScore;
             return Math.max(0, Math.min(100, Math.round(totalScore)));
         }
+        return 0;
+    };
 
-        let score = 0;
-        let total = 0;
+    const getMatchColor = (percentage: number) => {
+        if (percentage >= 90) return "#10b981";
+        if (percentage >= 80) return "#22c55e";
+        if (percentage >= 70) return "#3b82f6";
+        if (percentage >= 60) return "#eab308";
+        if (percentage >= 50) return "#f97316";
+        if (percentage > 0) return "#ef4444";
+        return "#6b7280";
+    };
 
-        if (application.mcqResults) {
-            score += (application.mcqResults.correctAnswers / application.mcqResults.totalQuestions) * 50;
-            total += 50;
-        }
-
-        if (application.interviewResults) {
-            score += application.interviewResults.overallScore * 0.5;
-            total += 50;
-        }
-
-        if (total === 0) return Math.floor(Math.random() * 41) + 60;
-        return Math.round((score / total) * 100);
+    const getMatchLabel = (percentage: number) => {
+        if (percentage >= 90) return "Excellent Match";
+        if (percentage >= 80) return "Great Match";
+        if (percentage >= 70) return "Good Match";
+        if (percentage >= 60) return "Fair Match";
+        if (percentage >= 50) return "Average Match";
+        if (percentage > 0) return "Needs Improvement";
+        return "Not Started";
     };
 
     const calculateJobAnalysisData = () => {
-        const perfect = jobApplications.filter(app => getMatchPercentage(app) >= 85).length;
-        const good = jobApplications.filter(app => getMatchPercentage(app) >= 70 && getMatchPercentage(app) < 85).length;
-        const partial = jobApplications.filter(app => getMatchPercentage(app) >= 50 && getMatchPercentage(app) < 70).length;
-        const poor = jobApplications.filter(app => getMatchPercentage(app) < 50).length;
+        const excellent = jobApplications.filter(app => getMatchPercentage(app) >= 90).length;
+        const great = jobApplications.filter(app => getMatchPercentage(app) >= 80 && getMatchPercentage(app) < 90).length;
+        const good = jobApplications.filter(app => getMatchPercentage(app) >= 70 && getMatchPercentage(app) < 80).length;
+        const fair = jobApplications.filter(app => getMatchPercentage(app) >= 60 && getMatchPercentage(app) < 70).length;
+        const average = jobApplications.filter(app => getMatchPercentage(app) >= 50 && getMatchPercentage(app) < 60).length;
+        const needsImprovement = jobApplications.filter(app => getMatchPercentage(app) > 0 && getMatchPercentage(app) < 50).length;
+        const notStarted = jobApplications.filter(app => getMatchPercentage(app) === 0).length;
 
-        const total = perfect + good + partial + poor;
+        const total = excellent + great + good + fair + average + needsImprovement + notStarted;
         
         if (total === 0) {
             return [
-                { name: "Perfect Match", value: 35, color: "#10B981" },
-                { name: "Good Match", value: 15, color: "#3B82F6" },
-                { name: "Partial Match", value: 8, color: "#F59E0B" },
-                { name: "Poor Match", value: 12, color: "#EF4444" },
+                { name: "Excellent Match", value: 25, color: "#10b981" },
+                { name: "Great Match", value: 20, color: "#22c55e" },
+                { name: "Good Match", value: 15, color: "#3b82f6" },
+                { name: "Fair Match", value: 12, color: "#eab308" },
+                { name: "Average Match", value: 10, color: "#f97316" },
+                { name: "Needs Improvement", value: 8, color: "#ef4444" },
+                { name: "Not Started", value: 10, color: "#6b7280" },
             ];
         }
 
         return [
-            { name: "Perfect Match", value: Math.round((perfect / total) * 100), color: "#10B981" },
-            { name: "Good Match", value: Math.round((good / total) * 100), color: "#3B82F6" },
-            { name: "Partial Match", value: Math.round((partial / total) * 100), color: "#F59E0B" },
-            { name: "Poor Match", value: Math.round((poor / total) * 100), color: "#EF4444" },
+            { name: "Excellent Match", value: Math.round((excellent / total) * 100), color: "#10b981" },
+            { name: "Great Match", value: Math.round((great / total) * 100), color: "#22c55e" },
+            { name: "Good Match", value: Math.round((good / total) * 100), color: "#3b82f6" },
+            { name: "Fair Match", value: Math.round((fair / total) * 100), color: "#eab308" },
+            { name: "Average Match", value: Math.round((average / total) * 100), color: "#f97316" },
+            { name: "Needs Improvement", value: Math.round((needsImprovement / total) * 100), color: "#ef4444" },
+            { name: "Not Started", value: Math.round((notStarted / total) * 100), color: "#6b7280" },
         ];
     };
 
@@ -178,10 +231,10 @@ const DashboardContent: React.FC = () => {
         return new Date(app.appliedOn) >= oneWeekAgo;
     }).length;
 
-    const mcqTestsThisWeek = jobApplications.filter(app => {
+    const completedTestsThisWeek = jobApplications.filter(app => {
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        return app.mcqResults && new Date(app.appliedOn) >= oneWeekAgo;
+        return app.finalReport && new Date(app.appliedOn) >= oneWeekAgo;
     }).length;
 
     const avgMatchThisWeek = () => {
@@ -193,12 +246,15 @@ const DashboardContent: React.FC = () => {
         
         if (weekApps.length === 0) return 0;
         
-        const total = weekApps.reduce((acc, app) => {
+        const applicationsWithData = weekApps.filter(app => getMatchPercentage(app) > 0);
+        if (applicationsWithData.length === 0) return 0;
+        
+        const total = applicationsWithData.reduce((acc, app) => {
             const percentage = getMatchPercentage(app);
             return acc + (isNaN(percentage) ? 0 : percentage);
         }, 0);
         
-        const average = Math.round(total / weekApps.length);
+        const average = Math.round(total / applicationsWithData.length);
         return isNaN(average) ? 0 : average;
     };
 
@@ -207,8 +263,9 @@ const DashboardContent: React.FC = () => {
     ).length;
 
     const bestMatchJob = () => {
-        if (jobApplications.length === 0) return null;
-        return jobApplications.reduce((best, app) => {
+        const applicationsWithData = jobApplications.filter(app => getMatchPercentage(app) > 0);
+        if (applicationsWithData.length === 0) return null;
+        return applicationsWithData.reduce((best, app) => {
             const match = getMatchPercentage(app);
             return match > getMatchPercentage(best) ? app : best;
         });
@@ -235,6 +292,21 @@ const DashboardContent: React.FC = () => {
         return result;
     };
 
+    const calculateAvgMatch = () => {
+        if (jobApplications.length === 0) return 0;
+        const applicationsWithData = jobApplications.filter(app => getMatchPercentage(app) > 0);
+        if (applicationsWithData.length === 0) return 0;
+        
+        const total = applicationsWithData.reduce((acc, app) => {
+            const percentage = getMatchPercentage(app);
+            return acc + (isNaN(percentage) ? 0 : percentage);
+        }, 0);
+        const average = Math.round(total / applicationsWithData.length);
+        return isNaN(average) ? 0 : average;
+    };
+
+    const avgMatch = calculateAvgMatch();
+
     if (loading) {
         return (
             <div className="flex-1 p-6 bg-black text-white overflow-auto">
@@ -259,6 +331,36 @@ const DashboardContent: React.FC = () => {
                 </div>
             </div>
 
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle className="flex items-center text-lg text-white">
+                        <MapPin className="w-5 h-5 mr-2 text-cyan-400" />
+                        User Overview
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-start space-x-8 w-full">
+                        <div className="w-24 h-24 bg-gray-600 rounded-full flex items-center justify-center text-3xl font-bold text-white flex-shrink-0">
+                            {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
+                        </div>
+                        <div className="flex-1">
+                            <div className="pr-8">
+                                <h4 className="text-2xl font-semibold text-white mb-1">
+                                    {user?.name || "Mockly Doe"}
+                                </h4>
+                                <p className="text-gray-300 mb-1 flex items-center">
+                                    <MapPin className="w-4 h-4 mr-2 text-red-400" />
+                                    {userLocation || "Detecting location..."}
+                                </p>
+                                <p className="text-gray-300 mb-1">
+                                    Email: {user?.email || "mockly.doe@email.com"}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <Card className="text-center">
                     <CardContent className="pt-6">
@@ -275,8 +377,8 @@ const DashboardContent: React.FC = () => {
                         <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mx-auto mb-4">
                             <CheckCircle className="w-6 h-6 text-white" />
                         </div>
-                        <div className="text-2xl font-bold text-white">{totalMcqTests}</div>
-                        <p className="text-gray-400">MCQ Tests</p>
+                        <div className="text-2xl font-bold text-white">{totalCompletedTests}</div>
+                        <p className="text-gray-400">Completed Tests</p>
                     </CardContent>
                 </Card>
 
@@ -285,17 +387,7 @@ const DashboardContent: React.FC = () => {
                         <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center mx-auto mb-4">
                             <Target className="w-6 h-6 text-white" />
                         </div>
-                        <div className="text-2xl font-bold text-white">
-                            {(() => {
-                                if (jobApplications.length === 0) return '0';
-                                const total = jobApplications.reduce((acc, app) => {
-                                    const percentage = getMatchPercentage(app);
-                                    return acc + (isNaN(percentage) ? 0 : percentage);
-                                }, 0);
-                                const average = Math.round(total / jobApplications.length);
-                                return isNaN(average) ? '0' : average.toString();
-                            })()}%
-                        </div>
+                        <div className="text-2xl font-bold text-white">{avgMatch}%</div>
                         <p className="text-gray-400">Avg Match</p>
                     </CardContent>
                 </Card>
@@ -336,10 +428,13 @@ const DashboardContent: React.FC = () => {
                         <div className="flex items-center">
                             <ChartContainer
                                 config={{
-                                    perfect: { label: "Perfect Match", color: "#10B981" },
-                                    good: { label: "Good Match", color: "#3B82F6" },
-                                    partial: { label: "Partial Match", color: "#F59E0B" },
-                                    poor: { label: "Poor Match", color: "#EF4444" },
+                                    excellent: { label: "Excellent Match", color: "#10b981" },
+                                    great: { label: "Great Match", color: "#22c55e" },
+                                    good: { label: "Good Match", color: "#3b82f6" },
+                                    fair: { label: "Fair Match", color: "#eab308" },
+                                    average: { label: "Average Match", color: "#f97316" },
+                                    needsImprovement: { label: "Needs Improvement", color: "#ef4444" },
+                                    notStarted: { label: "Not Started", color: "#6b7280" },
                                 }}
                                 className="h-[250px] w-[250px] mx-auto"
                             >
@@ -360,7 +455,6 @@ const DashboardContent: React.FC = () => {
                                         <RechartsLabel
                                             content={({ viewBox }) => {
                                                 if (!viewBox || !("cx" in viewBox) || !("cy" in viewBox)) return null
-                                                const total = jobAnalysisData.reduce((acc, curr) => acc + curr.value, 0)
 
                                                 return (
                                                     <text
@@ -370,7 +464,7 @@ const DashboardContent: React.FC = () => {
                                                         dominantBaseline="middle"
                                                         className="fill-gray-400 text-3xl font-bold"
                                                     >
-                                                        {total}%
+                                                        {avgMatch}%
                                                     </text>
                                                 )
                                             }}
@@ -442,8 +536,8 @@ const DashboardContent: React.FC = () => {
                                         <span className="text-blue-400 font-bold">{applicationsThisWeek}</span>
                                     </div>
                                     <div className="flex justify-between items-center">
-                                        <span className="text-gray-300">MCQ Tests</span>
-                                        <span className="text-purple-400 font-bold">{mcqTestsThisWeek}</span>
+                                        <span className="text-gray-300">Completed Tests</span>
+                                        <span className="text-purple-400 font-bold">{completedTestsThisWeek}</span>
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-gray-300">Avg Match Rate</span>
@@ -468,6 +562,7 @@ const DashboardContent: React.FC = () => {
                                         <Star className="w-4 h-4 text-yellow-400 mr-2" />
                                         <span className="text-white font-bold">{getMatchPercentage(bestMatch)}% Match</span>
                                     </div>
+                                    <p className="text-gray-400 text-xs mt-1">{getMatchLabel(getMatchPercentage(bestMatch))}</p>
                                 </div>
                             )}
                         </div>
@@ -480,7 +575,7 @@ const DashboardContent: React.FC = () => {
                                         data={weeklyActivityData()} 
                                         margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
                                     >
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#6b7280" />
                                         <XAxis dataKey="day" stroke="#9CA3AF" />
                                         <YAxis stroke="#9CA3AF" />
                                         <Tooltip 
@@ -493,7 +588,7 @@ const DashboardContent: React.FC = () => {
                                         />
                                         <Bar 
                                             dataKey="applications" 
-                                            fill="#3B82F6" 
+                                            fill="#6b7280" 
                                             radius={[4, 4, 0, 0]}
                                         />
                                     </BarChart>
