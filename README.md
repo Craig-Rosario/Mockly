@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <strong>Transform your job application process with AI-powered resume analysis, mock interviews, and skill assessments.</strong>
+  <strong>Transform your job application process with AI-powered resume analysis and skill assessments.</strong>
 </p>
 
 ---
@@ -34,14 +34,13 @@
 
 ## 🎯 What is Mockly?
 
-**Mockly** is an intelligent job application platform that leverages AI to help job seekers optimize their applications and prepare for interviews. The platform provides comprehensive analysis of resumes against job descriptions, generates customized MCQ tests, conducts mock interviews, and delivers detailed performance reports.
+**Mockly** is an intelligent job application platform that leverages AI to help job seekers optimize their applications and prepare for interviews. The platform provides comprehensive analysis of resumes against job descriptions, generates customized MCQ tests and delivers detailed performance reports.
 
 ### 🎨 Core Vision
 
 Mockly bridges the gap between job seekers and employers by providing:
 - **AI-powered resume optimization** using Google Gemini
 - **Skill assessment through dynamic MCQs**
-- **Mock interview simulations**
 - **Comprehensive performance analytics**
 - **Job application tracking and management**
 
@@ -61,12 +60,6 @@ Mockly bridges the gap between job seekers and employers by providing:
 - **Real-time scoring** with detailed analytics
 - **Time-based assessments** with performance tracking
 - **Topic-wise breakdown** of strengths and weaknesses
-
-### 🎤 Mock Interview System
-- **AI-conducted interviews** tailored to the job role
-- **Real-time feedback** on responses
-- **Performance scoring** across multiple criteria
-- **Interview preparation insights**
 
 ### 📊 Comprehensive Reporting
 - **Final evaluation metrics** combining all assessment components
@@ -109,12 +102,7 @@ Resume + Job Description → Gemini AI → Analysis Report
 - Timed assessments with instant feedback
 - Performance analytics and improvement suggestions
 
-### 5. **Interview Simulation**
-- AI-conducted mock interviews
-- Real-time response evaluation
-- Detailed feedback and scoring
-
-### 6. **Final Evaluation & Reporting**
+### 5. **Final Evaluation & Reporting**
 - Comprehensive score calculation
 - Visual performance dashboard
 - Actionable insights for improvement
@@ -133,8 +121,7 @@ graph TD
     F --> G[AI Processing with Gemini]
     G --> H[Analysis Results]
     H --> I[MCQ Assessment]
-    I --> J[Mock Interview]
-    J --> K[Final Report]
+    I --> K[Final Report]
     K --> L[Dashboard Analytics]
     
     F --> M[PDF Text Extraction]
@@ -362,7 +349,7 @@ Mockly/
 - **Historical Data**: Access to past applications and results
 
 #### 🚀 **Career Development**
-- **Interview Preparation**: Practice with AI-powered mock interviews
+- **Interview Preparation**: Practice with AI-powered mock MCQ with Resume Analysis
 - **Skill Assessment**: Identify strengths and areas for improvement
 - **Industry Insights**: Understand market requirements for different roles
 
