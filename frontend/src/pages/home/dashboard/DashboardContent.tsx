@@ -102,13 +102,11 @@ const DashboardContent: React.FC = () => {
     const totalMcqTests = jobApplications.filter(app => app.mcqResults).length;
 
     const getMatchPercentage = (application: JobApplication) => {
-        // First priority: Use final report total score if available
         if (application.finalReport?.metrics?.totalScore !== undefined) {
             const totalScore = application.finalReport.metrics.totalScore;
             return Math.max(0, Math.min(100, Math.round(totalScore)));
         }
 
-        // Fallback: Calculate from individual results
         let score = 0;
         let total = 0;
 
@@ -262,7 +260,7 @@ const DashboardContent: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <Card className="text-center bg-gray-900 border-gray-800">
+                <Card className="text-center">
                     <CardContent className="pt-6">
                         <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mx-auto mb-4">
                             <FileText className="w-6 h-6 text-white" />
@@ -272,7 +270,7 @@ const DashboardContent: React.FC = () => {
                     </CardContent>
                 </Card>
 
-                <Card className="text-center bg-gray-900 border-gray-800">
+                <Card className="text-center">
                     <CardContent className="pt-6">
                         <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mx-auto mb-4">
                             <CheckCircle className="w-6 h-6 text-white" />
@@ -282,7 +280,7 @@ const DashboardContent: React.FC = () => {
                     </CardContent>
                 </Card>
 
-                <Card className="text-center bg-gray-900 border-gray-800">
+                <Card className="text-center">
                     <CardContent className="pt-6">
                         <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center mx-auto mb-4">
                             <Target className="w-6 h-6 text-white" />
@@ -303,7 +301,7 @@ const DashboardContent: React.FC = () => {
                 </Card>
             </div>
 
-            <Card className="mb-8 rounded-2xl shadow-lg p-6 bg-gray-900 border-gray-800">
+            <Card className="mb-8">
                 <CardContent className="p-5">
                     <div className="flex items-center justify-between">
                         <div className="flex flex-col max-w-lg items-left">
@@ -326,7 +324,7 @@ const DashboardContent: React.FC = () => {
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                <Card className="bg-gray-900 border-gray-800">
+                <Card className="">
                     <CardHeader>
                         <CardTitle className="flex">
                             <BarChart3 className="w-5 h-5 mr-2 text-blue-400" />
@@ -398,7 +396,7 @@ const DashboardContent: React.FC = () => {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gray-900 border-gray-800">
+                <Card className="">
                     <CardHeader>
                         <CardTitle className="text-white">Recent Activity</CardTitle>
                     </CardHeader>
@@ -426,7 +424,7 @@ const DashboardContent: React.FC = () => {
                 </Card>
             </div>
 
-            <Card className="bg-gray-900 border-gray-800">
+            <Card className="">
                 <CardHeader>
                     <CardTitle className="text-white flex items-center">
                         <Calendar className="w-5 h-5 mr-2 text-green-400" />
