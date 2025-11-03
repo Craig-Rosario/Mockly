@@ -22,7 +22,6 @@ import {
     Calendar,
     Star,
     Award,
-    MapPin,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useAuth, useUser } from "@clerk/clerk-react"
@@ -103,6 +102,7 @@ const DashboardContent: React.FC = () => {
                         if (data.city && data.countryName) {
                             const location = `${data.city}, ${data.countryName}`;
                             setUserLocation(location);
+                            console.log(userLocation);
                         }
                     } catch (error) {
                         console.error("Error getting location:", error);
