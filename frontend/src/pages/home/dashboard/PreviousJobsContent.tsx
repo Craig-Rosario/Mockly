@@ -98,7 +98,6 @@ const PreviousJobsContent = () => {
             setDetailsLoading(true);
             const token = await getToken();
             
-            // Fetch detailed application data
             const response = await fetch(`/api/job-applications/${applicationId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -109,7 +108,6 @@ const PreviousJobsContent = () => {
                 setShowDetailsModal(true);
             } else {
                 console.error("Failed to fetch application details");
-                // Fallback to basic application data if detailed fetch fails
                 const basicApp = jobApplications.find(app => app._id === applicationId);
                 if (basicApp) {
                     setSelectedApplication(basicApp);
@@ -118,7 +116,6 @@ const PreviousJobsContent = () => {
             }
         } catch (err) {
             console.log("Cannot fetch application details:", err);
-            // Fallback to basic application data
             const basicApp = jobApplications.find(app => app._id === applicationId);
             if (basicApp) {
                 setSelectedApplication(basicApp);
@@ -130,13 +127,11 @@ const PreviousJobsContent = () => {
     };
 
     const getMatchPercentage = (application: JobApplication) => {
-        // First priority: Use final report total score if available
         if (application.finalReport?.metrics?.totalScore !== undefined) {
             const totalScore = application.finalReport.metrics.totalScore;
             return Math.max(0, Math.min(100, Math.round(totalScore)));
         }
 
-        // Fallback: Calculate from individual results
         let score = 0;
         let total = 0;
 
@@ -190,7 +185,6 @@ const PreviousJobsContent = () => {
 
     return (
         <div className="flex-1 p-6 bg-black text-white overflow-auto">
-            {/* Details Modal */}
             {showDetailsModal && selectedApplication && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-gray-900 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -213,7 +207,6 @@ const PreviousJobsContent = () => {
                                 </div>
                             ) : (
                                 <>
-                                    {/* Basic Information */}
                                     <div>
                                         <h4 className="text-lg font-semibold text-white mb-4">Basic Information</h4>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -246,7 +239,6 @@ const PreviousJobsContent = () => {
                                         </div>
                                     </div>
 
-                                    {/* Additional Details */}
                                     {(selectedApplication.jobDescription || selectedApplication.salary || selectedApplication.contactPerson) && (
                                         <div>
                                             <h4 className="text-lg font-semibold text-white mb-4">Additional Details</h4>
@@ -285,7 +277,6 @@ const PreviousJobsContent = () => {
                                         </div>
                                     )}
 
-                                    {/* MCQ Results */}
                                     {selectedApplication.mcqResults && (
                                         <div>
                                             <h4 className="text-lg font-semibold text-white mb-4">MCQ Test Results</h4>
@@ -317,7 +308,6 @@ const PreviousJobsContent = () => {
                                         </div>
                                     )}
 
-                                    {/* Interview Results */}
                                     {selectedApplication.interviewResults && (
                                         <div>
                                             <h4 className="text-lg font-semibold text-white mb-4">Interview Results</h4>
@@ -368,7 +358,6 @@ const PreviousJobsContent = () => {
                                         </div>
                                     )}
 
-                                    {/* Final Report - Comprehensive Analysis */}
                                     {selectedApplication.finalReport && (
                                         <div>
                                             <h4 className="text-lg font-semibold text-white mb-4">Final Analysis Report</h4>
@@ -393,7 +382,6 @@ const PreviousJobsContent = () => {
                                         </div>
                                     )}
 
-                                    {/* Match Percentage */}
                                     <div className="text-center p-6 bg-gray-800 rounded-lg">
                                         <p className="text-gray-400 text-sm">Overall Profile Match</p>
                                         <p className="text-3xl font-bold text-white mt-2">{getMatchPercentage(selectedApplication)}%</p>
@@ -512,162 +500,160 @@ const PreviousJobsContent = () => {
                             const appliedDate = formatDate(application.appliedOn);
 
                             return (
-                                <CardContent key={application._id}>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <Card className="">
-                                            <CardHeader className="flex flex-row items-start justify-between">
-                                                <div>
-                                                    <h4 className="text-white font-semibold">{application.jobTitle}</h4>
-                                                    <div className="flex items-center text-gray-400 text-sm mt-1">
-                                                        <Briefcase className="w-4 h-4 mr-1" />
-                                                        <span>{application.company}</span>
-                                                    </div>
-                                                    <p className="text-gray-400 text-sm mt-1">📍 {application.location} ({application.workMode})</p>
+                                <div key={application._id} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <Card className="">
+                                        <CardHeader className="flex flex-row items-start justify-between">
+                                            <div>
+                                                <h4 className="text-white font-semibold">{application.jobTitle}</h4>
+                                                <div className="flex items-center text-gray-400 text-sm mt-1">
+                                                    <Briefcase className="w-4 h-4 mr-1" />
+                                                    <span>{application.company}</span>
                                                 </div>
-                                                <span className={`${matchInfo.color} text-white px-2 py-1 rounded text-xs`}>
-                                                    {matchInfo.label}
-                                                </span>
-                                            </CardHeader>
-                                            <CardContent className="flex items-center justify-between">
-                                                <div className="flex items-center space-x-4">
-                                                    <div className="relative w-16 h-16">
-                                                        <ResponsiveContainer width="100%" height="100%">
-                                                            <PieChart>
-                                                                <Pie
-                                                                    data={[
-                                                                        { name: "Match", value: matchPercentage },
-                                                                        { name: "Remaining", value: 100 - matchPercentage },
-                                                                    ]}
-                                                                    cx="50%"
-                                                                    cy="50%"
-                                                                    innerRadius={20}
-                                                                    outerRadius={30}
-                                                                    startAngle={90}
-                                                                    endAngle={450}
-                                                                    dataKey="value"
-                                                                    stroke="none"
-                                                                >
-                                                                    <Cell fill={matchPercentage >= 85 ? "#10b981" : matchPercentage >= 70 ? "#3b82f6" : "#ef4444"} />
-                                                                    <Cell fill="rgba(255,255,255,0.1)" />
-                                                                </Pie>
-                                                            </PieChart>
-                                                        </ResponsiveContainer>
-                                                        <div className="absolute inset-0 flex items-center justify-center">
-                                                            <span className={`text-xs font-bold ${matchPercentage >= 85 ? "text-green-400" : matchPercentage >= 70 ? "text-blue-400" : "text-red-400"}`}>
-                                                                {matchPercentage}%
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-gray-400 text-sm">Profile Match</p>
-                                                        <p className={`font-semibold ${matchPercentage >= 85 ? "text-green-400" : matchPercentage >= 70 ? "text-blue-400" : "text-red-400"}`}>
+                                                <p className="text-gray-400 text-sm mt-1">📍 {application.location} ({application.workMode})</p>
+                                            </div>
+                                            <span className={`${matchInfo.color} text-white px-2 py-1 rounded text-xs`}>
+                                                {matchInfo.label}
+                                            </span>
+                                        </CardHeader>
+                                        <CardContent className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-4">
+                                                <div className="relative w-16 h-16">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <PieChart>
+                                                            <Pie
+                                                                data={[
+                                                                    { name: "Match", value: matchPercentage },
+                                                                    { name: "Remaining", value: 100 - matchPercentage },
+                                                                ]}
+                                                                cx="50%"
+                                                                cy="50%"
+                                                                innerRadius={20}
+                                                                outerRadius={30}
+                                                                startAngle={90}
+                                                                endAngle={450}
+                                                                dataKey="value"
+                                                                stroke="none"
+                                                            >
+                                                                <Cell fill={matchPercentage >= 85 ? "#10b981" : matchPercentage >= 70 ? "#3b82f6" : "#ef4444"} />
+                                                                <Cell fill="rgba(255,255,255,0.1)" />
+                                                            </Pie>
+                                                        </PieChart>
+                                                    </ResponsiveContainer>
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <span className={`text-xs font-bold ${matchPercentage >= 85 ? "text-green-400" : matchPercentage >= 70 ? "text-blue-400" : "text-red-400"}`}>
                                                             {matchPercentage}%
-                                                        </p>
+                                                        </span>
                                                     </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <div className="flex items-center text-gray-400 text-sm mb-2">
-                                                        <Calendar className="w-4 h-4 mr-1" />
-                                                        <span>{appliedDate}</span>
-                                                    </div>
-                                                    <div className="text-xs text-gray-500 mb-2">
-                                                        Status: {application.status}
-                                                    </div>
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        className="border-gray-500 text-gray-300 hover:bg-gray-700"
-                                                        onClick={() => fetchApplicationDetails(application._id)}
-                                                    >
-                                                        Details
-                                                    </Button>
+                                                <div>
+                                                    <p className="text-gray-400 text-sm">Profile Match</p>
+                                                    <p className={`font-semibold ${matchPercentage >= 85 ? "text-green-400" : matchPercentage >= 70 ? "text-blue-400" : "text-red-400"}`}>
+                                                        {matchPercentage}%
+                                                    </p>
                                                 </div>
-                                            </CardContent>
-                                        </Card>
-                                        
-                                        {jobApplications[index + 1] && (
-                                            (() => {
-                                                const nextApp = jobApplications[index + 1];
-                                                const nextMatchPercentage = getMatchPercentage(nextApp);
-                                                const nextMatchInfo = getMatchLabel(nextMatchPercentage);
-                                                const nextAppliedDate = formatDate(nextApp.appliedOn);
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="flex items-center text-gray-400 text-sm mb-2">
+                                                    <Calendar className="w-4 h-4 mr-1" />
+                                                    <span>{appliedDate}</span>
+                                                </div>
+                                                <div className="text-xs text-gray-500 mb-2">
+                                                    Status: {application.status}
+                                                </div>
+                                                <Button 
+                                                    variant="outline" 
+                                                    size="sm" 
+                                                    className="border-gray-500 text-gray-300 hover:bg-gray-700"
+                                                    onClick={() => fetchApplicationDetails(application._id)}
+                                                >
+                                                    Details
+                                                </Button>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                    
+                                    {jobApplications[index + 1] && (
+                                        (() => {
+                                            const nextApp = jobApplications[index + 1];
+                                            const nextMatchPercentage = getMatchPercentage(nextApp);
+                                            const nextMatchInfo = getMatchLabel(nextMatchPercentage);
+                                            const nextAppliedDate = formatDate(nextApp.appliedOn);
 
-                                                return (
-                                                    <Card className="">
-                                                        <CardHeader className="flex flex-row items-start justify-between">
-                                                            <div>
-                                                                <h4 className="text-white font-semibold">{nextApp.jobTitle}</h4>
-                                                                <div className="flex items-center text-gray-400 text-sm mt-1">
-                                                                    <Briefcase className="w-4 h-4 mr-1" />
-                                                                    <span>{nextApp.company}</span>
-                                                                </div>
-                                                                <p className="text-gray-400 text-sm mt-1">📍 {nextApp.location} ({nextApp.workMode})</p>
+                                            return (
+                                                <Card className="">
+                                                    <CardHeader className="flex flex-row items-start justify-between">
+                                                        <div>
+                                                            <h4 className="text-white font-semibold">{nextApp.jobTitle}</h4>
+                                                            <div className="flex items-center text-gray-400 text-sm mt-1">
+                                                                <Briefcase className="w-4 h-4 mr-1" />
+                                                                <span>{nextApp.company}</span>
                                                             </div>
-                                                            <span className={`${nextMatchInfo.color} text-white px-2 py-1 rounded text-xs`}>
-                                                                {nextMatchInfo.label}
-                                                            </span>
-                                                        </CardHeader>
-                                                        <CardContent className="flex items-center justify-between">
-                                                            <div className="flex items-center space-x-4">
-                                                                <div className="relative w-16 h-16">
-                                                                    <ResponsiveContainer width="100%" height="100%">
-                                                                        <PieChart>
-                                                                            <Pie
-                                                                                data={[
-                                                                                    { name: "Match", value: nextMatchPercentage },
-                                                                                    { name: "Remaining", value: 100 - nextMatchPercentage },
-                                                                                ]}
-                                                                                cx="50%"
-                                                                                cy="50%"
-                                                                                innerRadius={20}
-                                                                                outerRadius={30}
-                                                                                startAngle={90}
-                                                                                endAngle={450}
-                                                                                dataKey="value"
-                                                                                stroke="none"
-                                                                            >
-                                                                                <Cell fill={nextMatchPercentage >= 85 ? "#10b981" : nextMatchPercentage >= 70 ? "#3b82f6" : "#ef4444"} />
-                                                                                <Cell fill="rgba(255,255,255,0.1)" />
-                                                                            </Pie>
-                                                                        </PieChart>
-                                                                    </ResponsiveContainer>
-                                                                    <div className="absolute inset-0 flex items-center justify-center">
-                                                                        <span className={`text-xs font-bold ${nextMatchPercentage >= 85 ? "text-green-400" : nextMatchPercentage >= 70 ? "text-blue-400" : "text-red-400"}`}>
-                                                                            {nextMatchPercentage}%
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-gray-400 text-sm">Profile Match</p>
-                                                                    <p className={`font-semibold ${nextMatchPercentage >= 85 ? "text-green-400" : nextMatchPercentage >= 70 ? "text-blue-400" : "text-red-400"}`}>
+                                                            <p className="text-gray-400 text-sm mt-1">📍 {nextApp.location} ({nextApp.workMode})</p>
+                                                        </div>
+                                                        <span className={`${nextMatchInfo.color} text-white px-2 py-1 rounded text-xs`}>
+                                                            {nextMatchInfo.label}
+                                                        </span>
+                                                    </CardHeader>
+                                                    <CardContent className="flex items-center justify-between">
+                                                        <div className="flex items-center space-x-4">
+                                                            <div className="relative w-16 h-16">
+                                                                <ResponsiveContainer width="100%" height="100%">
+                                                                    <PieChart>
+                                                                        <Pie
+                                                                            data={[
+                                                                                { name: "Match", value: nextMatchPercentage },
+                                                                                { name: "Remaining", value: 100 - nextMatchPercentage },
+                                                                            ]}
+                                                                            cx="50%"
+                                                                            cy="50%"
+                                                                            innerRadius={20}
+                                                                            outerRadius={30}
+                                                                            startAngle={90}
+                                                                            endAngle={450}
+                                                                            dataKey="value"
+                                                                            stroke="none"
+                                                                        >
+                                                                            <Cell fill={nextMatchPercentage >= 85 ? "#10b981" : nextMatchPercentage >= 70 ? "#3b82f6" : "#ef4444"} />
+                                                                            <Cell fill="rgba(255,255,255,0.1)" />
+                                                                        </Pie>
+                                                                    </PieChart>
+                                                                </ResponsiveContainer>
+                                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                                    <span className={`text-xs font-bold ${nextMatchPercentage >= 85 ? "text-green-400" : nextMatchPercentage >= 70 ? "text-blue-400" : "text-red-400"}`}>
                                                                         {nextMatchPercentage}%
-                                                                    </p>
+                                                                    </span>
                                                                 </div>
                                                             </div>
-                                                            <div className="text-right">
-                                                                <div className="flex items-center text-gray-400 text-sm mb-2">
-                                                                    <Calendar className="w-4 h-4 mr-1" />
-                                                                    <span>{nextAppliedDate}</span>
-                                                                </div>
-                                                                <div className="text-xs text-gray-500 mb-2">
-                                                                    Status: {nextApp.status}
-                                                                </div>
-                                                                <Button 
-                                                                    variant="outline" 
-                                                                    size="sm" 
-                                                                    className="border-gray-500 text-gray-300 hover:bg-gray-700"
-                                                                    onClick={() => fetchApplicationDetails(nextApp._id)}
-                                                                >
-                                                                    Details
-                                                                </Button>
+                                                            <div>
+                                                                <p className="text-gray-400 text-sm">Profile Match</p>
+                                                                <p className={`font-semibold ${nextMatchPercentage >= 85 ? "text-green-400" : nextMatchPercentage >= 70 ? "text-blue-400" : "text-red-400"}`}>
+                                                                    {nextMatchPercentage}%
+                                                                </p>
                                                             </div>
-                                                        </CardContent>
-                                                    </Card>
-                                                );
-                                            })()
-                                        )}
-                                    </div>
-                                </CardContent>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="flex items-center text-gray-400 text-sm mb-2">
+                                                                <Calendar className="w-4 h-4 mr-1" />
+                                                                <span>{nextAppliedDate}</span>
+                                                            </div>
+                                                            <div className="text-xs text-gray-500 mb-2">
+                                                                Status: {nextApp.status}
+                                                            </div>
+                                                            <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="border-gray-500 text-gray-300 hover:bg-gray-700"
+                                                                onClick={() => fetchApplicationDetails(nextApp._id)}
+                                                            >
+                                                                Details
+                                                            </Button>
+                                                        </div>
+                                                    </CardContent>
+                                                </Card>
+                                            );
+                                        })()
+                                    )}
+                                </div>
                             );
                         }).filter((_, index) => index % 2 === 0)} 
                     </div>

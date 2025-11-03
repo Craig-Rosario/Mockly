@@ -79,7 +79,6 @@ export default function ProfileContent() {
               const location = `${data.city}, ${data.countryName}`
               setUserLocation(location)
               
-              // Optionally update the user's location in the database
               await updateUserLocation(location)
             }
           } catch (error) {
@@ -132,7 +131,6 @@ export default function ProfileContent() {
       const data = await res.json()
       setUser(data)
       
-      // If user already has a location in database, use that
       if (data.location) {
         setUserLocation(data.location)
       }
@@ -146,12 +144,10 @@ export default function ProfileContent() {
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      // Check if file is PDF
       if (file.type !== 'application/pdf') {
         alert('Please upload a PDF file')
         return
       }
-      // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         alert('File size should be less than 5MB')
         return
@@ -183,7 +179,6 @@ export default function ProfileContent() {
         setUser(updatedUser)
         setSelectedFile(null)
         setShowUploadSection(false)
-        // Reset file input
         const fileInput = document.getElementById('resume-upload') as HTMLInputElement
         if (fileInput) fileInput.value = ''
         alert('Resume uploaded successfully!')
@@ -278,7 +273,6 @@ export default function ProfileContent() {
   }
 
   const getFileNameFromUrl = (url: string) => {
-    // Extract filename from URL or use the original filename
     const parts = url.split('/')
     return parts[parts.length - 1] || 'resume.pdf'
   }
@@ -305,13 +299,9 @@ export default function ProfileContent() {
             <h2 className="text-3xl font-bold bg-clip-text text-white">Hi User</h2>
           )}
         </div>
-        {/* <Button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:opacity-90 px-4 py-2 rounded-lg transition-all duration-200 flex items-center space-x-2 shadow-md">
-          <Settings className="w-4 h-4" />
-          <span>Edit Profile</span>
-        </Button> */}
       </div>
 
-      <Card className="mb-6 bg-gray-900 border-gray-800">
+      <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center text-lg text-white">
             <User className="w-5 h-5 mr-2 text-cyan-400" />
@@ -341,7 +331,7 @@ export default function ProfileContent() {
         </CardContent>
       </Card>
 
-      <Card className="mb-6 bg-gray-900 border-gray-800">
+      <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center text-lg text-white">
             <FileText className="w-5 h-5 mr-2 text-blue-500" />
@@ -351,7 +341,6 @@ export default function ProfileContent() {
         <CardContent>
           {user?.resume ? (
             <>
-              {/* Current Resume Display */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
@@ -389,7 +378,6 @@ export default function ProfileContent() {
                 </div>
               </div>
 
-              {/* Upload Section - Only shown when Update is clicked */}
               {showUploadSection && (
                 <div className="border-t border-gray-700 pt-6">
                   <h4 className="text-white font-medium mb-4">Update Resume</h4>
@@ -453,12 +441,10 @@ export default function ProfileContent() {
               )}
             </>
           ) : (
-            /* No Resume State */
             <div className="text-center py-8">
               <FileText className="w-16 h-16 text-gray-500 mx-auto mb-4" />
               <p className="text-gray-400 mb-6">No resume uploaded yet</p>
               
-              {/* Upload Section for first time */}
               <div className="max-w-md mx-auto">
                 <input
                   id="resume-upload"
@@ -508,8 +494,8 @@ export default function ProfileContent() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-gray-900 border-gray-800">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="">
           <CardHeader>
             <CardTitle className="flex items-center text-white text-lg">
               <BarChart3 className="w-5 h-5 mr-2 text-emerald-400" />
@@ -556,38 +542,7 @@ export default function ProfileContent() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle className="flex items-center text-white text-lg">
-              <Target className="w-5 h-5 mr-2 text-blue-400" />
-              Overall AI Interview Performance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center mb-4">
-              <div className="text-3xl font-bold text-white">
-                {user?.performance?.interviewAttempts || 127}
-              </div>
-              <p className="text-gray-400">Total Attempts</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-xl font-bold text-cyan-400">
-                  {user?.performance?.interviewAccuracy || 84}%
-                </div>
-                <p className="text-gray-400 text-sm">Accuracy Rate</p>
-              </div>
-              <div className="text-center">
-                <div className="text-xl font-bold text-orange-400">
-                  {user?.performance?.avgInterviewTime || '2.3'} min
-                </div>
-                <p className="text-gray-400 text-sm">Avg Time</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gray-900 border-gray-800">
+        <Card className="">
           <CardHeader>
             <CardTitle className="flex items-center text-white text-lg">
               <CheckCircle className="w-5 h-5 mr-2 text-purple-400" />
