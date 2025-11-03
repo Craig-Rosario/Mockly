@@ -121,9 +121,9 @@ graph TD
     O --> P[Project Evaluation]
     P --> G
     
-    style A fill:#e1f5fe
-    style G fill:#f3e5f5
-    style K fill:#e8f5e8
+    style A fill:#b3e5fc
+    style G fill:#d1c4e9
+    style K fill:#c8e6c9
 ```
 
 ### Detailed Workflow:
