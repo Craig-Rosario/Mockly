@@ -23,6 +23,7 @@ import {
   LogOut,
 } from "lucide-react"
 import { useAuth } from "@clerk/clerk-react"
+import { useNavigate } from "react-router-dom"
 
 interface UserData {
   _id: string
@@ -33,8 +34,9 @@ interface UserData {
 
 export const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"dashboard" | "profile" | "previous-jobs">("dashboard")
-  const { getToken } = useAuth()
+  const { getToken, signOut } = useAuth()
   const [user, setUser] = useState<UserData | null>(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -51,6 +53,19 @@ export const Dashboard: React.FC = () => {
     }
     fetchUser()
   }, [getToken])
+
+  const handleLogout = async () => {
+    try {
+      // Sign out from Clerk
+      await signOut()
+      // Redirect to login page
+      navigate("/login")
+    } catch (error) {
+      console.error("Error during logout:", error)
+      // Still redirect to login even if there's an error
+      navigate("/login")
+    }
+  }
 
   return (
     <SidebarProvider>
@@ -130,7 +145,10 @@ export const Dashboard: React.FC = () => {
         <SidebarFooter className="p-4 mt-auto">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton className="px-5 py-3 text-base rounded-none hover:bg-gray-800 hover:text-white transition-colors">
+              <SidebarMenuButton 
+                onClick={handleLogout}
+                className="px-5 py-3 text-base rounded-none hover:bg-gray-800 hover:text-white transition-colors"
+              >
                 <LogOut className="w-6 h-6" />
                 <span>Logout</span>
               </SidebarMenuButton>
